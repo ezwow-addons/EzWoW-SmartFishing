@@ -45,6 +45,9 @@ function WidgetBuilder.buildRow(parent)
     rowEntry.sub = StyleService:Text(rowEntry, 10, StyleService.muted)
     rowEntry.sub:SetPoint("TOPLEFT", rowEntry.title, "BOTTOMLEFT", 0, -4)
     rowEntry.sub:SetPoint("RIGHT", rowEntry.right2, "LEFT", -8, 0)
+    -- one line each (a long text ends in "..."; rows have a fixed height)
+    if rowEntry.title.SetWordWrap then rowEntry.title:SetWordWrap(false) end
+    if rowEntry.sub.SetWordWrap then rowEntry.sub:SetWordWrap(false) end
 
     rowEntry.track = rowEntry:CreateTexture(nil, "ARTWORK")
     rowEntry.track:SetHeight(3)
@@ -65,6 +68,17 @@ function WidgetBuilder.buildRow(parent)
             if self.data.hint then
                 GameTooltip:AddLine(" ")
                 GameTooltip:AddLine(self.data.hint, unpack(StyleService.accent))
+            end
+            GameTooltip:Show()
+        elseif type(self.data.tip) == "table" and #self.data.tip > 0 then
+            -- rows that are not items: their full text
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            for index, line in ipairs(self.data.tip) do
+                if index == 1 then
+                    GameTooltip:SetText(line, 0.929, 0.957, 0.969, 1, true)
+                else
+                    GameTooltip:AddLine(line, 0.75, 0.78, 0.82, true)
+                end
             end
             GameTooltip:Show()
         end
@@ -113,10 +127,79 @@ function StyleService:List(parent)
     local child = CreateFrame("Frame", nil, scrollFrame)
     child:SetSize(1, 1)
     scrollFrame:SetScrollChild(child)
-    scrollFrame:SetScript("OnSizeChanged", function(self, boxWidth) child:SetWidth(boxWidth) end)
+
+    local function maxScroll()
+        return math.max(0, (child:GetHeight() or 0) - (scrollFrame:GetHeight() or 0))
+    end
+    local function scrollTo(value)
+        scrollFrame:SetVerticalScroll(math.min(maxScroll(), math.max(0, value or 0)))
+    end
+
+    -- scroll bar: a thin track and thumb on the right, shown only when the
+    -- list is longer than the view (drag the thumb, or click the track)
+    local bar = CreateFrame("Frame", nil, scrollFrame)
+    bar:SetWidth(6)
+    bar:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -1, -2)
+    bar:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", -1, 2)
+    bar.track = bar:CreateTexture(nil, "BACKGROUND")
+    bar.track:SetAllPoints()
+    bar.track:SetColorTexture(1, 1, 1, 0.07)
+    bar:Hide()
+    local accent = StyleService.accent
+    local thumb = CreateFrame("Button", nil, bar)
+    thumb:SetWidth(6)
+    thumb.tex = thumb:CreateTexture(nil, "ARTWORK")
+    thumb.tex:SetAllPoints()
+    thumb.tex:SetColorTexture(accent[1], accent[2], accent[3], 0.55)
+    thumb:SetScript("OnEnter", function(self) self.tex:SetColorTexture(accent[1], accent[2], accent[3], 0.9) end)
+    thumb:SetScript("OnLeave", function(self)
+        if not self.dragging then self.tex:SetColorTexture(accent[1], accent[2], accent[3], 0.55) end
+    end)
+    thumb:SetScript("OnMouseDown", function(self)
+        local _, y = GetCursorPosition()
+        self.dragging, self.startY, self.startScroll = true, y / self:GetEffectiveScale(), scrollFrame:GetVerticalScroll() or 0
+    end)
+    thumb:SetScript("OnMouseUp", function(self)
+        self.dragging = false
+        if not self:IsMouseOver() then self.tex:SetColorTexture(accent[1], accent[2], accent[3], 0.55) end
+    end)
+    thumb:SetScript("OnUpdate", function(self)
+        if not self.dragging then return end
+        if not IsMouseButtonDown("LeftButton") then self.dragging = false return end
+        local _, y = GetCursorPosition()
+        local moved = self.startY - y / self:GetEffectiveScale()
+        local room = (bar:GetHeight() or 0) - (self:GetHeight() or 0)
+        if room > 0 then scrollTo(self.startScroll + moved / room * maxScroll()) end
+    end)
+    bar:EnableMouse(true)
+    bar:SetScript("OnMouseDown", function(self)
+        -- a click on the track above / below the thumb turns one view up / down
+        local _, y = GetCursorPosition()
+        y = y / self:GetEffectiveScale()
+        local view = scrollFrame:GetHeight() or 0
+        if y > (thumb:GetTop() or y) then scrollTo((scrollFrame:GetVerticalScroll() or 0) - view)
+        elseif y < (thumb:GetBottom() or y) then scrollTo((scrollFrame:GetVerticalScroll() or 0) + view) end
+    end)
+
+    function scrollFrame:UpdateBar()
+        local viewH, contentH = self:GetHeight() or 0, child:GetHeight() or 0
+        local need = viewH > 0 and contentH > viewH + 1
+        bar:SetShown(need)
+        child:SetWidth(math.max(1, (self:GetWidth() or 0) - (need and 10 or 0)))
+        if not need then return end
+        local trackH = bar:GetHeight() or 0
+        local thumbH = math.max(18, trackH * viewH / contentH)
+        thumb:SetHeight(thumbH)
+        local most = maxScroll()
+        local at = most > 0 and ((self:GetVerticalScroll() or 0) / most) or 0
+        thumb:ClearAllPoints()
+        thumb:SetPoint("TOP", bar, "TOP", 0, -at * math.max(0, trackH - thumbH))
+    end
+
+    scrollFrame:SetScript("OnSizeChanged", function(self) self:UpdateBar() end)
+    scrollFrame:SetScript("OnVerticalScroll", function(self) self:UpdateBar() end)
     scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-        local maxScroll = math.max(0, child:GetHeight() - self:GetHeight())
-        self:SetVerticalScroll(math.min(maxScroll, math.max(0, self:GetVerticalScroll() - delta * ROW_H * 2)))
+        scrollTo((self:GetVerticalScroll() or 0) - delta * ROW_H * 2)
     end)
 
     scrollFrame.rows = {}
@@ -142,8 +225,9 @@ function StyleService:List(parent)
             WidgetBuilder.fillRow(rowEntry, d)
         end
         child:SetHeight(math.max(1, #list * ROW_H))
-        local maxScroll = math.max(0, child:GetHeight() - self:GetHeight())
-        if (self:GetVerticalScroll() or 0) > maxScroll then self:SetVerticalScroll(maxScroll) end
+        local most = maxScroll()
+        if (self:GetVerticalScroll() or 0) > most then self:SetVerticalScroll(most) end
+        self:UpdateBar()
     end
     return scrollFrame
 end

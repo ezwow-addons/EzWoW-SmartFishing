@@ -105,6 +105,10 @@ function ns:AddCatch(mapID, x, y, items)
         subIndex.lastMap = mapID
 
         table.insert(savedDB.recent, 1, { id = itemID, q = qty, t = currentTime, m = mapID, x = x, y = y, sub = spot.sub })
+        -- every catch also goes to the full log (Modules/FishingLog.lua)
+        if ns.FishingLog and ns.FishingLog.AddCatch then
+            pcall(ns.FishingLog.AddCatch, currentTime, itemID, qty, mapID, x, y, spot.sub)
+        end
     end
     while #savedDB.recent > RECENT_MAX do table.remove(savedDB.recent) end
 

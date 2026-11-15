@@ -11,11 +11,12 @@ local L = ns.L
 local StyleService = ns.Style
 
 local hud
+local HUD_W = 272
 
 function LiveFishingHUD.buildHUD()
     local windowFrame = CreateFrame("Button", "EzWoW_SmartFishingHUD", UIParent, "BackdropTemplate")
     StyleService:Panel(windowFrame)
-    windowFrame:SetSize(236, 84)
+    windowFrame:SetSize(HUD_W, 84)
     windowFrame:SetFrameStrata("MEDIUM")
     windowFrame:SetClampedToScreen(true)
     windowFrame:SetMovable(true)
@@ -61,7 +62,7 @@ function LiveFishingHUD.buildHUD()
     local labelKeys = { "시간", "낚음", "성공률", "시간당" }
     windowFrame.vals = {}
     windowFrame.lbls = {}
-    local cellW = (236 - 20) / 4
+    local cellW = (HUD_W - 20) / 4
     for index, lookupKey in ipairs(labelKeys) do
         local entryValue = StyleService:Text(windowFrame, 14)
         entryValue:SetPoint("TOPLEFT", 10 + (index - 1) * cellW, -26)
@@ -143,7 +144,35 @@ function LiveFishingHUD.buildHUD()
         rightOfText = games
     end
 
+    -- the log window: every catch, and fights and chat while fishing (UI/LogWindow.lua)
+    local history = CreateFrame("Button", nil, windowFrame, "BackdropTemplate")
+    StyleService:Panel(history, { 1, 1, 1, 0.04 }, StyleService.border)
+    history:SetHeight(18)
+    history:SetPoint("RIGHT", rightOfText, "LEFT", -4, 0)
+    history.t = StyleService:Text(history, 10)
+    history.t:SetPoint("CENTER")
+    history.t:SetJustifyH("CENTER")
+    history.t:SetText(L["기록"])
+    history:SetWidth(history.t:GetStringWidth() + 16)
+    history:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(unpack(StyleService.accent))
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(L["기록"], 1, 1, 1)
+        GameTooltip:AddLine(L["최근 3일 동안 낚은 물고기와, 낚시하는 동안의 전투·주 이름이나 보조 이름이 나온 채팅·귓속말을 종류별로 봅니다."], 0.655, 0.725, 0.773, true)
+        GameTooltip:AddDoubleLine(" ", "EzWoW - Smart Fishing", 0, 0, 0, 0.5, 0.5, 0.5)
+        GameTooltip:Show()
+        if _G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.Refit then pcall(_G.EzWoWTooltipTagSizer.Refit, GameTooltip) end
+    end)
+    history:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(unpack(StyleService.border))
+        GameTooltip:Hide()
+    end)
+    history:SetScript("OnClick", function() if ns.ToggleLogWindow then ns:ToggleLogWindow() end end)
+    windowFrame.history = history
+    rightOfText = history
+
     windowFrame.last = StyleService:Text(windowFrame, 11)
+    if windowFrame.last.SetWordWrap then windowFrame.last:SetWordWrap(false) end
     windowFrame.last:SetPoint("LEFT", windowFrame.lastIcon, "RIGHT", 6, 0)
     windowFrame.last:SetPoint("RIGHT", rightOfText, "LEFT", -6, 0)
 
@@ -154,6 +183,10 @@ function LiveFishingHUD.buildHUD()
         if self.stop and self.stop.t then
             self.stop.t:SetText(L["낚시 종료"])
             self.stop:SetWidth(self.stop.t:GetStringWidth() + 16)
+        end
+        if self.history and self.history.t then
+            self.history.t:SetText(L["기록"])
+            self.history:SetWidth(self.history.t:GetStringWidth() + 16)
         end
         local stateFlag = ns:Session()
         local catches, casts = stateFlag and stateFlag.catches or 0, stateFlag and stateFlag.casts or 0

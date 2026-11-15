@@ -217,6 +217,8 @@ SlashCmdList.EZWOWSMARTFISHING = function(msg)
         ns:OpenSettings()
     elseif cmd == "gear" or cmd == "장비" or cmd == "pole" then
         ns:EquipBestPole()
+    elseif cmd == "log" or cmd == "기록" then
+        if ns.ToggleLogWindow then ns:ToggleLogWindow() end
     elseif cmd == "hud" then
         CoreBootstrap.toggleBooleanOption("showHUD", L["세션 창"])
     elseif cmd == "session" or cmd == "세션" then
@@ -236,6 +238,7 @@ SlashCmdList.EZWOWSMARTFISHING = function(msg)
         ns:Print(L["명령어:"])
         ns:PrintRaw(L["  /ezsf — 낚시 기록 창 열기/닫기"])
         ns:PrintRaw(L["  /ezsf config — 설정 열기 (게임 설정 > 애드온)"])
+        ns:PrintRaw(L["  /ezsf log — 낚시 기록(물고기·전투·채팅) 창 열기/닫기"])
         ns:PrintRaw(L["  /ezsf onebutton — 원버튼 낚시 켜기/끄기"])
         ns:PrintRaw(L["  /ezsf key F — 원버튼 키 변경 (기본 SPACE)"])
         ns:PrintRaw(L["  /ezsf lure — 자동 미끼 켜기/끄기"])

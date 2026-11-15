@@ -70,6 +70,7 @@ function SettingsDialog.definePopups()
             wipe(db.journal)
             db.totals = { casts = 0, catches = 0, missed = 0 }
             db.session = nil
+            if ns.FishingLog and ns.FishingLog.Clear then ns.FishingLog.Clear() end
             ns:Print(L["모든 낚시 기록을 지웠어요."])
             ns:PublishAddonEvent("AM_DATA_CHANGED")
         end,

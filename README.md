@@ -59,6 +59,7 @@ WoW Forever (`Interface: 16001`) · `/ezsf`
 - **낚시 소리 패널**(세션 HUD 오른쪽): 낚시를 던져 기다리는 동안만 효과음을 키워 찌 소리가 잘 들리게 합니다. `+`/`-`로 크기(10~200%, 100%를 넘기면 주 음량까지 올림), 스피커 버튼으로 켜기/끄기. 낚시가 끝나면 원래 음량으로 돌아갑니다.
 - **음악·주변 소리 줄이기**(설정, 기본 꺼짐): 켜면 낚시하는 동안 배경음악과 주변 소리를 끕니다.
 - **미니게임** 버튼(세션 HUD): 찌를 기다리는 동안 미니게임 창을 엽니다. 창은 키를 받지 않으므로 원버튼 키는 그대로 낚시에 쓰입니다.
+- **기록** 버튼(세션 HUD, `/ezsf log`): 낚시 기록 창을 엽니다. **최근 3일 동안 낚은 물고기가 모두**(시각 · 장소) 남고, **낚시하는 동안**에는 전투(시각 · 걸린 시간 · 생명력 최저 · 나를 노린 적 · 사망)와 **주 이름이나 보조 이름이 나온 채팅 · 귓속말 · 나에게 한 감정 표현**도 남습니다. **전체 · 물고기 · 전투 · 채팅**으로 나눠 보고, 한 쪽에 100줄씩 넘겨 봅니다. 기록은 최근 3일 치만 이 PC의 애드온 저장 파일에 남고(그보다 오래된 줄은 지워짐) 다른 사람과 공유하지 않습니다. (게임 전투 기록은 애드온이 읽을 수 없어서, 적 이름은 이름표가 보이거나 대상으로 잡은 적만 남습니다.)
 
 ### 설정창 (`/ezsf config`)
 
@@ -92,6 +93,7 @@ WoW Forever (`Interface: 16001`) · `/ezsf`
 | `/ezsf lure` (`미끼`) · `/ezsf pins` (`핀`) · `/ezsf hud` | 자동 미끼 · 지도 핀 · 세션 HUD 켜기/끄기 |
 | `/ezsf pole` (`gear`, `장비`) | 가장 좋은 낚싯대 들기 / 원래 무기로 복귀 |
 | `/ezsf session` (`세션`) | 세션 통계 새로 시작 |
+| `/ezsf log` (`기록`) | 낚시 기록(물고기 · 전투 · 채팅) 창 |
 | `/ezsf reset` · `/ezsf reset all` | 현재 지역 낚시 지점 지우기 · 모든 지역 낚시 지점 지우기 |
 | `/ezsf lang <auto\|ko\|en\|de\|fr\|es\|ru\|cn\|tw>` | 표시 언어 변경 |
 | `/ezsf donate` (`후원`) | 후원 안내 |
@@ -163,6 +165,7 @@ An all-in-one fishing helper. With a pole equipped, **one key (Space by default)
 - **Fishing sound panel** (right of the session HUD): turns sound effects up only while your line is out so the splash is easy to hear. `+`/`-` set the level (10–200%; above 100% the master volume goes up too), the speaker button toggles it. Your volume returns when fishing ends.
 - **Mute music & ambience** (settings, off by default): when on, music and ambience are muted while fishing.
 - **Mini games** button (session HUD): opens the mini games while you wait for a bite. The window takes no keys, so the one-button key keeps fishing.
+- **Log** button (session HUD, `/ezsf log`): opens the fishing log. **Every fish you catch in the last 3 days** is kept with its time and place; **while you fish** it also keeps fights (time, length, lowest health, enemies targeting you, death) and **chat lines with your name or family name, whispers and emotes done at you**. View them as **All · Fish · Fights · Chat**, 100 lines a page. Only the last 3 days are kept (older lines are dropped), in this PC's saved data only, never shared. (Addons can't read the game's combat log, so only enemies with a visible name plate or your target are named.)
 
 ### Settings window (`/ezsf config`)
 
@@ -196,6 +199,7 @@ An all-in-one fishing helper. With a pole equipped, **one key (Space by default)
 | `/ezsf lure` · `/ezsf pins` · `/ezsf hud` | Toggle auto lure · map pins · session HUD |
 | `/ezsf pole` (`gear`) | Equip the best pole / go back to weapons |
 | `/ezsf session` | Start a new session |
+| `/ezsf log` | Fishing log window (fish, fights, chat) |
 | `/ezsf reset` · `/ezsf reset all` | Clear spots in this zone · clear spots in all zones |
 | `/ezsf lang <auto\|ko\|en\|de\|fr\|es\|ru\|cn\|tw>` | Change display language |
 | `/ezsf donate` | Support info |

@@ -44,6 +44,7 @@ Modules\FishingCast.lua
 Modules\SoundBoost.lua
 Modules\GearManager.lua
 Modules\CatchLog.lua
+Modules\FishingLog.lua
 Modules\ExpectedRates.lua
 Modules\TooltipHook.lua
 Modules\PartyGuildSync.lua
@@ -58,6 +59,7 @@ Libs\EzWoWMiniGames\Games\Puzzle.lua
 Libs\EzWoWMiniGames\Games\Solitaire.lua
 UI\HUD.lua
 UI\JournalWindow.lua
+UI\LogWindow.lua
 UI\MinimapButton.lua
 UI\DonateModal.lua
 UI\LanguageDropdown.lua
