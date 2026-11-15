@@ -178,6 +178,17 @@ function EzWoW_SmartFishingPinMixin:SetPassThroughButtons(...)
     getmetatable(self).__index.SetPassThroughButtons(self, ...)
 end
 
+-- the mouse propagation setters are protected in combat the same way
+function EzWoW_SmartFishingPinMixin:SetPropagateMouseClicks(...)
+    if InCombatLockdown() then return end
+    getmetatable(self).__index.SetPropagateMouseClicks(self, ...)
+end
+
+function EzWoW_SmartFishingPinMixin:SetPropagateMouseMotion(...)
+    if InCombatLockdown() then return end
+    getmetatable(self).__index.SetPropagateMouseMotion(self, ...)
+end
+
 function EzWoW_SmartFishingPinMixin:OnMouseClickAction(button)
     if button ~= "LeftButton" or not self.entry then return end
     if self.entry.kind == "water" then
