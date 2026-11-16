@@ -22,6 +22,47 @@ local RING = {
 }
 local SIZE = { own = 20, shared = 18, pool = 18, zone = 26, water = 20 }
 
+-- One mark of all EzWoW map marks is in front: the last one the mouse was on
+-- (above every other mark, its label too). It stays in front after the mouse
+-- leaves, until another mark is hovered; the one before goes back to its place.
+-- Kept in a table all EzWoW addons share (EzWoWMapPinFront).
+local function mapPinFront()
+    local f = _G.EzWoWMapPinFront
+    if type(f) == "table" and (tonumber(f.v) or 0) >= 2 then return f end
+    f = { v = 2 }
+    local STRATA = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6,
+        FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+    function f.Restore(pin)
+        if not pin then return end
+        if pin.ezBaseLevel ~= nil then
+            if pin.ezBaseStrata then pcall(pin.SetFrameStrata, pin, pin.ezBaseStrata) end
+            -- a level its addon gave it since (the marks were drawn again) stays
+            if pin:GetFrameLevel() == pin.ezFrontLevel then pcall(pin.SetFrameLevel, pin, pin.ezBaseLevel) end
+        end
+        pin.ezBaseLevel, pin.ezBaseStrata, pin.ezFrontLevel = nil, nil, nil
+        if f.pin == pin then f.pin = nil end
+    end
+    function f.Raise(pin)
+        if not pin then return end
+        if f.pin == pin then
+            if pin:GetFrameLevel() == pin.ezFrontLevel then return end
+            -- drawn again at its own level since it came to the front: raised from there
+            pin.ezBaseLevel = pin:GetFrameLevel()
+        else
+            if f.pin then f.Restore(f.pin) end
+            pin.ezBaseLevel, pin.ezBaseStrata = pin:GetFrameLevel(), pin:GetFrameStrata()
+            f.pin = pin
+        end
+        -- the marks of the quest addons sit in HIGH: at least that layer
+        if (STRATA[pin.ezBaseStrata] or 0) < STRATA.HIGH then pcall(pin.SetFrameStrata, pin, "HIGH") end
+        local parent = pin:GetParent()
+        pcall(pin.SetFrameLevel, pin, ((parent and parent:GetFrameLevel()) or 0) + 1200)
+        pin.ezFrontLevel = pin:GetFrameLevel()
+    end
+    _G.EzWoWMapPinFront = f
+    return f
+end
+
 EzWoW_SmartFishingPinMixin = CreateFromMixins(MapCanvasPinMixin)
 
 function EzWoW_SmartFishingPinMixin:OnLoad()
@@ -44,7 +85,8 @@ end
 
 function EzWoW_SmartFishingPinMixin:OnAcquired(entry)
     self.entry = entry
-    self.ezBaseLevel = nil
+    -- a pin used again for another mark starts at its own level
+    mapPinFront().Restore(self)
     local kind = entry.kind or "own"
     local filter = ns.settings.filterFish
     local iconID
@@ -89,6 +131,15 @@ function EzWoW_SmartFishingPinMixin:OnAcquired(entry)
         end
     end
     
+    -- the label under the pin ("55%", "+3") takes the mouse too
+    if self.SetHitRectInsets then
+        if self.Label:IsShown() then
+            local extra = math.max(0, (self.Label:GetStringWidth() or 0) - SIZE[kind] * (ns.settings.pinScale or 1)) / 2
+            self:SetHitRectInsets(-extra, -extra, 0, -13)
+        else
+            self:SetHitRectInsets(0, 0, 0, 0)
+        end
+    end
     local inset = (kind == "pool") and 3 or 2
     self.Icon:ClearAllPoints()
     self.Icon:SetPoint("TOPLEFT", inset, -inset)
@@ -113,12 +164,12 @@ function WorldMapPinProvider.addFishLines(fish, total, filter)
     end
 end
 
+
 function EzWoW_SmartFishingPinMixin:OnMouseEnter()
     local entry = self.entry
     if not entry then return end
-    -- the hovered mark (and its label) comes to the front of marks that overlap it
-    if self.ezBaseLevel == nil then self.ezBaseLevel = self:GetFrameLevel() end
-    self:SetFrameLevel(self.ezBaseLevel + 500)
+    -- the hovered mark (and its label) comes to the front of every map mark and stays there
+    mapPinFront().Raise(self)
     self:RingColor(true)
     local kind = entry.kind or "own"
     local filter = ns.settings.filterFish
@@ -189,10 +240,6 @@ function EzWoW_SmartFishingPinMixin:OnMouseEnter()
 end
 
 function EzWoW_SmartFishingPinMixin:OnMouseLeave()
-    if self.ezBaseLevel ~= nil then
-        self:SetFrameLevel(self.ezBaseLevel)
-        self.ezBaseLevel = nil
-    end
     self:RingColor(false)
     GameTooltip:Hide()
     WorldMapPinProvider.hideMembers()
