@@ -15,6 +15,7 @@ local DEFAULTS = {
     oneButton = true,   
     key = "SPACE",      
     autoLure = true,    
+    autoClam = true,    
     showPins = true,    
     setSoftInteract = true, 
     combatSwap = true,  
@@ -183,6 +184,8 @@ SlashCmdList.EZWOWSMARTFISHING = function(msg)
         CoreBootstrap.toggleBooleanOption("oneButton", L["원버튼 낚시"])
     elseif cmd == "lure" or cmd == "미끼" then
         CoreBootstrap.toggleBooleanOption("autoLure", L["자동 미끼"])
+    elseif cmd == "clam" or cmd == "조개" then
+        CoreBootstrap.toggleBooleanOption("autoClam", L["낚은 조개 바로 열기"])
     elseif cmd == "pins" or cmd == "핀" then
         CoreBootstrap.toggleBooleanOption("showPins", L["지도 핀"])
     elseif cmd == "key" or cmd == "키" then
@@ -242,6 +245,7 @@ SlashCmdList.EZWOWSMARTFISHING = function(msg)
         ns:PrintRaw(L["  /ezsf onebutton — 원버튼 낚시 켜기/끄기"])
         ns:PrintRaw(L["  /ezsf key F — 원버튼 키 변경 (기본 SPACE)"])
         ns:PrintRaw(L["  /ezsf lure — 자동 미끼 켜기/끄기"])
+        ns:PrintRaw(L["  /ezsf clam — 낚은 조개 바로 열기 켜기/끄기"])
         ns:PrintRaw(L["  /ezsf pins — 세계지도 핀 켜기/끄기"])
         ns:PrintRaw(L["  /ezsf pole — 가장 좋은 낚싯대 착용 / 평소 무기로"])
         ns:PrintRaw(L["  /ezsf hud — 세션 창 켜기/끄기"])

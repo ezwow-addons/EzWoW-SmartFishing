@@ -204,6 +204,16 @@ if ns.Share and ns.Share.RegisterKind then
             queueRefresh()
             return true
         end,
+        -- the shared records window: received spots in use now (none while
+        -- receiving is off)
+        used = function()
+            if not (ns.db and ns.settings and ns.settings.receiveShared) then return 0 end
+            local n = 0
+            for _, spots in pairs(type(ns.db.shared) == "table" and ns.db.shared or {}) do
+                if type(spots) == "table" then n = n + #spots end
+            end
+            return n
+        end,
     })
 end
 

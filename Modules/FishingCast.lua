@@ -122,10 +122,167 @@ function DoubleClickCastEngine.needsLure()
     return DoubleClickCastEngine.resolveBestLure() ~= nil
 end
 
+-- Clams caught while fishing are opened as soon as the catch is in the bags
+-- (out of combat, with no cast, loot window or trade window open), and what
+-- they hold goes into the bags without the loot window. Only clams fishing
+-- brought in this session are opened (not ones kept from elsewhere). If the
+-- game does not let the addon open them, the next press of the one-button
+-- key opens one before casting.
+local CLAMS = { 5523, 5524, 7973 }
+local CLAM_SET = {}
+for _, itemID in ipairs(CLAMS) do CLAM_SET[itemID] = true end
+-- everything the three clams can hold: clam meat and pearls
+local CLAM_CONTENTS = { [5503] = true, [5504] = true, [7974] = true, [5498] = true, [5500] = true, [7971] = true, [13926] = true }
+-- meat plus a pearl at most
+local CLAM_FREE_SLOTS = 2
+-- with one of these open, using a bag item would sell, store, mail or trade it
+local ITEM_MOVING_FRAMES = { "MerchantFrame", "BankFrame", "MailFrame", "TradeFrame", "AuctionHouseFrame", "AuctionFrame", "GuildBankFrame" }
+
+local clamOpenTimer = false
+local directClamAt = -10
+local clamBagsFullTold = false
+-- clams fishing brought in, by item ID (one less each time one is opened)
+local caughtClams = {}
+local clamLootCounted, clamOpenCounted = false, false
+local lastClamOffered
+-- trade-type windows open now, from their open and close events
+local tradeWindows = {}
+
+function DoubleClickCastEngine.freeBagSlots()
+    if not (C_Container and C_Container.GetContainerNumFreeSlots) then return 0 end
+    local free = 0
+    for bag = 0, 4 do
+        local isCallOk, slots, bagFamily = pcall(C_Container.GetContainerNumFreeSlots, bag)
+        slots, bagFamily = ns.CoerceSafeNumber(slots), ns.CoerceSafeNumber(bagFamily)
+        if isCallOk and slots and (bagFamily == nil or bagFamily == 0) then free = free + slots end
+    end
+    return free
+end
+
+-- bag, slot and item ID of the first clam in the bags
+function DoubleClickCastEngine.findClam()
+    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemInfo) then return nil end
+    for bag = 0, 4 do
+        local _, numSlots = pcall(C_Container.GetContainerNumSlots, bag)
+        for slot = 1, ns.CoerceSafeNumber(numSlots) or 0 do
+            local isCallOk, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
+            local itemID = isCallOk and type(info) == "table" and ns.CoerceSafeNumber(info.itemID)
+            if itemID and CLAM_SET[itemID] and (caughtClams[itemID] or 0) > 0 then
+                local locked = ns.IsReadableValue(info.isLocked) and info.isLocked == true
+                if not locked then return bag, slot, itemID end
+            end
+        end
+    end
+    return nil
+end
+
+-- a clam to open now (option on and room for what it holds), or nil
+function DoubleClickCastEngine.resolveClam()
+    if not (ns.settings and ns.settings.autoClam) then return nil end
+    local bag, slot, itemID = DoubleClickCastEngine.findClam()
+    if not bag then return nil end
+    if DoubleClickCastEngine.freeBagSlots() < CLAM_FREE_SLOTS then
+        if not clamBagsFullTold then
+            clamBagsFullTold = true
+            ns:Print(L["가방 빈칸이 2칸보다 적어서 조개를 열지 않았어요."])
+        end
+        return nil
+    end
+    clamBagsFullTold = false
+    lastClamOffered = itemID
+    return bag, slot, itemID
+end
+
+-- the interaction types whose windows take a used bag item (sell, store, mail, trade)
+local TRADE_INTERACTIONS = { "Merchant", "Banker", "MailInfo", "Auctioneer", "GuildBanker", "TradePartner" }
+
+function DoubleClickCastEngine.itemWindowOpen()
+    if next(tradeWindows) then return true end
+    for _, frameName in ipairs(ITEM_MOVING_FRAMES) do
+        local frame = _G[frameName]
+        if type(frame) == "table" and frame.IsShown and frame:IsShown() then return true end
+    end
+    -- a window of another look (the game's own state, whatever frame shows it)
+    local pim = C_PlayerInteractionManager
+    local types = Enum and Enum.PlayerInteractionType
+    if pim and type(pim.IsInteractingWithNpcOfType) == "function" and types then
+        for _, name in ipairs(TRADE_INTERACTIONS) do
+            local kind = types[name]
+            if kind then
+                local ok, open = pcall(pim.IsInteractingWithNpcOfType, kind)
+                if ok and issecretvalue and issecretvalue(open) then return true end
+                if ok and open == true then return true end
+            end
+        end
+    end
+    return false
+end
+
+-- the game refused the addon opening a clam on this build: the key opens them
+function DoubleClickCastEngine.directClamBlocked()
+    return ns.db ~= nil and ns.db.clamOpenBlocked ~= nil and ns.db.clamOpenBlocked == (select(2, GetBuildInfo()))
+end
+
+function DoubleClickCastEngine.openClamNow()
+    clamOpenTimer = false
+    if not (ns.settings and ns.settings.autoClam) or not ns.db or DoubleClickCastEngine.directClamBlocked() then return end
+    if not (C_Container and C_Container.UseContainerItem) then return end
+    if InCombatLockdown() or channeling or not DoubleClickCastEngine.containsPole() then return end
+    local castName = ns.UnwrapSafeValue(UnitCastingInfo, "player")
+    local channelName = ns.UnwrapSafeValue(UnitChannelInfo, "player")
+    if type(castName) ~= "nil" or type(channelName) ~= "nil" then return end
+    if ns.UnwrapSafeValue(SpellIsTargeting) == true or ns.UnwrapSafeValue(CursorHasItem) == true then return end
+    if (ns.CoerceSafeNumber(ns.UnwrapSafeValue(GetNumLootItems)) or 0) > 0 then return end
+    if DoubleClickCastEngine.itemWindowOpen() then return end
+    -- one clam at a time: the next one after this one's loot is in the bags
+    local waited = GetTime() - directClamAt
+    if waited < 1 then
+        DoubleClickCastEngine.scheduleClamOpen(1.05 - waited)
+        return
+    end
+    local bag, slot = DoubleClickCastEngine.resolveClam()
+    if not bag then return end
+    directClamAt = GetTime()
+    pcall(C_Container.UseContainerItem, bag, slot)
+end
+
+function DoubleClickCastEngine.scheduleClamOpen(delay)
+    if clamOpenTimer or not (ns.settings and ns.settings.autoClam) then return end
+    clamOpenTimer = true
+    C_Timer.After(delay or 0.3, DoubleClickCastEngine.openClamNow)
+end
+
+-- loot from a clam: it comes from a clam item, or is all clam meat and pearls
+-- (second value: the clam's item ID when the loot tells it)
+function DoubleClickCastEngine.isClamLoot()
+    local fishingLoot = ns.UnwrapSafeValue(IsFishingLoot)
+    if ns.IsReadableValue(fishingLoot) and fishingLoot then return false end
+    local numItems = ns.CoerceSafeNumber(ns.UnwrapSafeValue(GetNumLootItems)) or 0
+    if numItems == 0 then return false end
+    local fromClam, onlyContents, clamID = false, true, nil
+    for slot = 1, numItems do
+        local guid = ns.CoerceSafeString(ns.UnwrapSafeValue(GetLootSourceInfo, slot))
+        if guid and guid:match("^Item%-") and C_Item.GetItemIDByGUID then
+            local sourceID = ns.CoerceSafeNumber(ns.UnwrapSafeValue(C_Item.GetItemIDByGUID, guid))
+            if sourceID and CLAM_SET[sourceID] then fromClam, clamID = true, sourceID end
+        end
+        local link = ns.CoerceSafeString(ns.UnwrapSafeValue(GetLootSlotLink, slot))
+        local itemID = link and ns.CoerceSafeNumber(ns.UnwrapSafeValue(C_Item.GetItemInfoInstant, link))
+        if not (itemID and CLAM_CONTENTS[itemID]) then onlyContents = false end
+    end
+    return fromClam or (onlyContents and DoubleClickCastEngine.containsPole()), clamID
+end
+
 function DoubleClickCastEngine.assembleMacro()
     if DoubleClickCastEngine.needsLure() then
         local lure = DoubleClickCastEngine.resolveBestLure()
         return "/use item:" .. lure.id .. "\n/use 16"
+    end
+    -- only when the game does not let the addon open them itself (otherwise a
+    -- press right after a catch casts as usual)
+    if DoubleClickCastEngine.directClamBlocked() and not DoubleClickCastEngine.itemWindowOpen() then
+        local clamBag, _, clamID = DoubleClickCastEngine.resolveClam()
+        if clamBag then return "/use item:" .. clamID end
     end
     local displayName = DoubleClickCastEngine.resolveFishingSpellName()
     if displayName then return "/cast " .. displayName end
@@ -345,4 +502,79 @@ ns:SubscribeAddonEvent("UNIT_SPELLCAST_CHANNEL_STOP", function(unit, _, spellID)
     channeling = false
     DoubleClickCastEngine.refreshActiveView()
     ns:PublishAddonEvent("AM_BOBBER_CHANGED")
+end)
+
+-- clams: open after each catch, after combat or a cast, and when a trade-type window closes
+local function queueClam() DoubleClickCastEngine.scheduleClamOpen() end
+for _, eventName in ipairs({ "BAG_UPDATE_DELAYED", "LOOT_CLOSED", "PLAYER_REGEN_ENABLED", "PLAYER_EQUIPMENT_CHANGED" }) do
+    ns:SubscribeAddonEvent(eventName, queueClam)
+end
+local TRADE_CLOSE = { MERCHANT_CLOSED = "merchant", BANKFRAME_CLOSED = "bank", MAIL_CLOSED = "mail", TRADE_CLOSED = "trade",
+    AUCTION_HOUSE_CLOSED = "auction", GUILDBANKFRAME_CLOSED = "guildbank" }
+for eventName, key in pairs(TRADE_CLOSE) do
+    ns:SubscribeAddonEvent(eventName, function()
+        tradeWindows[key] = nil
+        queueClam()
+    end)
+end
+ns:SubscribeAddonEvent("PLAYER_ENTERING_WORLD", function() wipe(tradeWindows) end)
+ns:SubscribeAddonEvent("UNIT_SPELLCAST_CHANNEL_STOP", function(unit)
+    if ns.CoerceSafeString(unit) == "player" then queueClam() end
+end)
+ns:SubscribeAddonEvent("AM_SETTINGS_CHANGED", function(lookupKey)
+    if lookupKey == "autoClam" then queueClam() end
+end)
+-- a trade-type window opening: the one-button key must not use a clam there
+local TRADE_OPEN = { MERCHANT_SHOW = "merchant", BANKFRAME_OPENED = "bank", MAIL_SHOW = "mail", TRADE_SHOW = "trade",
+    AUCTION_HOUSE_SHOW = "auction", GUILDBANKFRAME_OPENED = "guildbank" }
+for eventName, key in pairs(TRADE_OPEN) do
+    ns:SubscribeAddonEvent(eventName, function()
+        tradeWindows[key] = true
+        DoubleClickCastEngine.refreshActiveView()
+        C_Timer.After(0.1, DoubleClickCastEngine.refreshActiveView)
+    end)
+end
+
+-- clams in fishing loot are counted: those are the ones opened
+ns:SubscribeAddonEvent("LOOT_READY", function()
+    if clamLootCounted then return end
+    local fishingLoot = ns.UnwrapSafeValue(IsFishingLoot)
+    if not (ns.IsReadableValue(fishingLoot) and fishingLoot) then return end
+    clamLootCounted = true
+    for slot = 1, (ns.CoerceSafeNumber(ns.UnwrapSafeValue(GetNumLootItems)) or 0) do
+        local link = ns.CoerceSafeString(ns.UnwrapSafeValue(GetLootSlotLink, slot))
+        local itemID = link and ns.CoerceSafeNumber(ns.UnwrapSafeValue(C_Item.GetItemInfoInstant, link))
+        if itemID and CLAM_SET[itemID] then
+            local _, _, quantity = ns.UnwrapSafeValue(GetLootSlotInfo, slot)
+            caughtClams[itemID] = (caughtClams[itemID] or 0) + (ns.CoerceSafeNumber(quantity) or 1)
+        end
+    end
+end)
+ns:SubscribeAddonEvent("LOOT_CLOSED", function() clamLootCounted, clamOpenCounted = false, false end)
+
+-- what a clam holds goes straight into the bags (and that clam is counted as opened)
+ns:SubscribeAddonEvent("LOOT_READY", function(isAutoLoot)
+    if not (ns.settings and ns.settings.autoClam) then return end
+    local isClam, clamID = DoubleClickCastEngine.isClamLoot()
+    if not isClam then return end
+    if not clamOpenCounted then
+        clamOpenCounted = true
+        local id = clamID or lastClamOffered
+        if id and (caughtClams[id] or 0) > 0 then caughtClams[id] = caughtClams[id] - 1 end
+    end
+    if isAutoLoot then return end
+    for slot = (ns.CoerceSafeNumber(ns.UnwrapSafeValue(GetNumLootItems)) or 0), 1, -1 do
+        LootSlot(slot)
+    end
+end)
+
+-- the game refusing the addon opening a clam: stop trying on this build
+local clamBlockFrame = CreateFrame("Frame")
+pcall(clamBlockFrame.RegisterEvent, clamBlockFrame, "ADDON_ACTION_BLOCKED")
+pcall(clamBlockFrame.RegisterEvent, clamBlockFrame, "ADDON_ACTION_FORBIDDEN")
+clamBlockFrame:SetScript("OnEvent", function(_, _, addonName)
+    if ns.CoerceSafeString(addonName) ~= ADDON or GetTime() - directClamAt > 0.5 or not ns.db then return end
+    if DoubleClickCastEngine.directClamBlocked() then return end
+    ns.db.clamOpenBlocked = (select(2, GetBuildInfo()))
+    ns:Print(L["게임이 조개를 저절로 열지 못하게 해서, 원버튼 키를 누를 때마다 하나씩 엽니다."])
 end)

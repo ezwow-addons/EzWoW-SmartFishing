@@ -34,7 +34,7 @@ WoW Forever (`Interface: 16001`) · `/ezsf`
 | 번호 | 부분 | 설명 |
 |---|---|---|
 | ① | 세션 HUD | 낚싯대를 들면 나타납니다. **현재 숙련(장비 보너스 포함) · 지역 권장 숙련**, 미끼 남은 시간, 세션 시간 · 낚은 수 · 성공률 · 시간당 어획량, 마지막으로 낚은 물고기를 보여 줍니다. 클릭: 기록 창 · 우클릭: 설정 · 드래그: 이동. |
-| ② | 미니게임 · 낚시 종료 | **미니게임**: 찌를 기다리는 동안 미니게임 창(지뢰찾기 · 짝 맞추기 · 퍼즐 맞추기 · 솔리테어)을 엽니다. **낚시 종료**: 세션을 마치고 원래 주무기·보조무기로 돌아갑니다. |
+| ② | 미니게임 · 낚시 종료 | **미니게임**: 찌를 기다리는 동안 미니게임 창(지뢰찾기 · 짝 맞추기 · 퍼즐 맞추기 · 솔리테어 · 스도쿠)을 엽니다. **낚시 종료**: 세션을 마치고 원래 주무기·보조무기로 돌아갑니다. |
 | ③ | 낚시 소리 패널 | 낚시를 던져 기다리는 동안만 효과음을 키웁니다. `+`/`-`로 크기, 스피커 버튼으로 켜기/끄기. |
 | ④ | 기록 창 탭 (`/ezsf`) | **세션**(이번 세션 통계) · **기록**(최근에 낚은 물고기와 장소 · 시각, 클릭하면 지도에서 보기) · **도감**(처음 낚은 날 · 장소 · 마리 수) · **지역**(현재 지역 어종과 기대 확률, 권장 숙련, “지도 열기”) |
 | ⑤ | 세션 통계 | 시간 · 던짐 · 낚음 · 놓침 · 성공률 · 시간당과 어종별 비율. **새 세션**으로 다시 시작합니다. |
@@ -48,6 +48,7 @@ WoW Forever (`Interface: 16001`) · `/ezsf`
 2. 찌가 물면 같은 키를 눌러 **건져 올립니다**(찌 자동 인식). 인식이 안 되면 마우스를 찌에 올리고 키를 누르세요.
 3. **자동 획득**이 켜져 있으면 전리품을 자동으로 줍습니다.
 4. 미끼 효과가 없거나 끝나면 가방에서 **가장 좋은 미끼**를 찾아 자동으로 바릅니다.
+5. **조개**(작은 조개 · 큰 조개 · 큰입조개)를 낚으면 바로 열고, 안에 든 조개살과 진주를 전리품 창 없이 가방에 넣습니다. 전투 중이 아니고 가방 빈칸이 2칸 이상일 때 엽니다. 게임이 바로 열지 못하게 하면 원버튼 키를 누를 때마다 하나씩 엽니다.
 
 - 원버튼 키는 낚싯대를 들고 **멈춰 서 있을 때만** 바뀝니다. 이동 중이나 평소에는 스페이스(점프)가 그대로 동작합니다(던진 뒤 건져 올리기는 그대로 됩니다).
 - 미끼는 내 낚시 숙련으로 쓸 수 있는 것만 고릅니다.
@@ -69,6 +70,7 @@ WoW Forever (`Interface: 16001`) · `/ezsf`
 | ① | 원버튼 낚시 · 자동 획득 · 미끼 자동 사용 · 찌 자동 인식 · 찌 인식 범위 넓히기 | 모두 켬 |
 | ② | 원버튼 키: 스페이스 · F · G · R · T · V · 마우스 휠 클릭 · 마우스 4번 · 마우스 5번 (클릭: 목록, 우클릭: 다음 키, 그 밖의 키는 `/ezsf key 키`) | 스페이스 |
 | ③ | 낚시 중 소리 키우기 · 음악·주변 소리 줄이기 | 켬 · 끔 |
+| ③ | 낚은 조개 바로 열기 | 켬 |
 | ④ | 전투가 시작되면 무기로 교체 · 전투가 끝나면 낚싯대 다시 들기 | 켬 · 켬 |
 | ④ | 장비를 바꿀 때 채팅 알림 (끄면 교체·찌 인식 설정 알림을 채팅에 띄우지 않음) | 켬 |
 | ④ | 버튼: 낚싯대 / 평소 무기 (바꾸기) · 낚시 기록 창 (/ezsf) | - |
@@ -91,6 +93,7 @@ WoW Forever (`Interface: 16001`) · `/ezsf`
 | `/ezsf onebutton` (`원버튼`) | 원버튼 낚시 켜기/끄기 |
 | `/ezsf key 키` (`키`) | 원버튼 키 변경 (예: `/ezsf key F`) |
 | `/ezsf lure` (`미끼`) · `/ezsf pins` (`핀`) · `/ezsf hud` | 자동 미끼 · 지도 핀 · 세션 HUD 켜기/끄기 |
+| `/ezsf clam` (`조개`) | 낚은 조개 바로 열기 켜기/끄기 |
 | `/ezsf pole` (`gear`, `장비`) | 가장 좋은 낚싯대 들기 / 원래 무기로 복귀 |
 | `/ezsf session` (`세션`) | 세션 통계 새로 시작 |
 | `/ezsf log` (`기록`) | 낚시 기록(물고기 · 전투 · 채팅) 창 |
@@ -141,7 +144,7 @@ An all-in-one fishing helper. With a pole equipped, **one key (Space by default)
 | No. | Part | Description |
 |---|---|---|
 | ① | Session HUD | Appears when you equip a pole: **your skill (with gear bonus) vs. the zone's recommended skill**, lure timer, session time, catches, success rate, catches per hour and your last catch. Click: log · right-click: settings · drag: move. |
-| ② | Mini games · Stop fishing | **Mini games**: opens the mini games (Minesweeper, Memory, Sliding Puzzle, Solitaire) while you wait for a bite. **Stop fishing**: ends the session and puts your main/off-hand weapons back on. |
+| ② | Mini games · Stop fishing | **Mini games**: opens the mini games (Minesweeper, Memory, Sliding Puzzle, Solitaire, Sudoku) while you wait for a bite. **Stop fishing**: ends the session and puts your main/off-hand weapons back on. |
 | ③ | Fishing sound panel | Turns sound effects up only while your line is out. `+`/`-` set the level, the speaker button toggles it. |
 | ④ | Log tabs (`/ezsf`) | **Session** (this session) · **Log** (recent catches with place and time; click to see it on the map) · **Journal** (first catch date, place, count) · **Zone** (fish and expected chances here, recommended skill, “Open map”) |
 | ⑤ | Session stats | Time, casts, caught, missed, success, per hour and share per fish. **New session** restarts. |
@@ -155,6 +158,7 @@ An all-in-one fishing helper. With a pole equipped, **one key (Space by default)
 2. When the bobber splashes, press the same key to **reel in** (bobber auto-detect). If it is not detected, put the mouse over the bobber and press the key.
 3. With **Auto loot** on, loot is picked up automatically.
 4. If there is no lure (or it ran out), the **best lure** in your bags is applied.
+5. **Clams** you catch (Small Barnacled, Thick-shelled and Big-mouth) are opened right away, and the meat and pearls go into your bags without the loot window. This happens out of combat with at least 2 free bag slots. If the game does not allow it, each press of the one-button key opens one clam.
 
 - The key is only rebound while a pole is equipped **and you are standing still**, so Space still jumps while moving and otherwise (reeling in after a cast still works).
 - Only lures your fishing skill allows are picked.
@@ -176,6 +180,7 @@ An all-in-one fishing helper. With a pole equipped, **one key (Space by default)
 | ① | One-button fishing · Auto loot · Auto apply lure · Auto-detect bobber · Widen bobber detection | All on |
 | ② | One-button key: Space · F · G · R · T · V · middle mouse · mouse 4 · mouse 5 (click: list, right-click: next key, any other key with `/ezsf key KEY`) | Space |
 | ③ | Louder sound while fishing · Mute music & ambience | On · Off |
+| ③ | Open caught clams | On |
 | ④ | Swap to weapons when combat starts · Re-equip pole after combat | On · On |
 | ④ | Chat notes on gear swaps (off: no chat notes for swaps and interact settings) | On |
 | ④ | Buttons: Fishing pole / weapons (Swap) · Fishing log (/ezsf) | - |
@@ -198,6 +203,7 @@ An all-in-one fishing helper. With a pole equipped, **one key (Space by default)
 | `/ezsf onebutton` | Toggle one-button fishing |
 | `/ezsf key KEY` | Change the one-button key (e.g. `/ezsf key F`) |
 | `/ezsf lure` · `/ezsf pins` · `/ezsf hud` | Toggle auto lure · map pins · session HUD |
+| `/ezsf clam` | Toggle opening caught clams |
 | `/ezsf pole` (`gear`) | Equip the best pole / go back to weapons |
 | `/ezsf session` | Start a new session |
 | `/ezsf log` | Fishing log window (fish, fights, chat) |

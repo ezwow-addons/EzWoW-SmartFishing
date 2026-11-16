@@ -44,6 +44,7 @@ end
 
 function EzWoW_SmartFishingPinMixin:OnAcquired(entry)
     self.entry = entry
+    self.ezBaseLevel = nil
     local kind = entry.kind or "own"
     local filter = ns.settings.filterFish
     local iconID
@@ -76,6 +77,17 @@ function EzWoW_SmartFishingPinMixin:OnAcquired(entry)
     end
 
     self.Icon:SetTexture(iconID and ns:ItemIcon(iconID) or StyleService.ICON_INNER)
+    -- this pin stands for others too close to show apart: "+N" (hover shows them)
+    local members = entry.members
+    if type(members) == "table" and #members > 0 then
+        if self.Label:IsShown() then
+            self.Label:SetText((self.Label:GetText() or "") .. " +" .. #members)
+        else
+            self.Label:SetText("+" .. #members)
+            self.Label:SetTextColor(unpack(StyleService.muted))
+            self.Label:Show()
+        end
+    end
     
     local inset = (kind == "pool") and 3 or 2
     self.Icon:ClearAllPoints()
@@ -104,6 +116,9 @@ end
 function EzWoW_SmartFishingPinMixin:OnMouseEnter()
     local entry = self.entry
     if not entry then return end
+    -- the hovered mark (and its label) comes to the front of marks that overlap it
+    if self.ezBaseLevel == nil then self.ezBaseLevel = self:GetFrameLevel() end
+    self:SetFrameLevel(self.ezBaseLevel + 500)
     self:RingColor(true)
     local kind = entry.kind or "own"
     local filter = ns.settings.filterFish
@@ -163,14 +178,24 @@ function EzWoW_SmartFishingPinMixin:OnMouseEnter()
         end
     end
     
+    if type(entry.members) == "table" and #entry.members > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(L["이 근처 %d곳 더 (지도에 작은 점으로 표시)"]:format(#entry.members), unpack(StyleService.muted))
+    end
     GameTooltip:AddDoubleLine(" ", "EzWoW - Smart Fishing", 0, 0, 0, 0.5, 0.5, 0.5)
     GameTooltip:Show()
     if _G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.Refit then pcall(_G.EzWoWTooltipTagSizer.Refit, GameTooltip) end
+    pcall(WorldMapPinProvider.showMembers, self)
 end
 
 function EzWoW_SmartFishingPinMixin:OnMouseLeave()
+    if self.ezBaseLevel ~= nil then
+        self:SetFrameLevel(self.ezBaseLevel)
+        self.ezBaseLevel = nil
+    end
     self:RingColor(false)
     GameTooltip:Hide()
+    WorldMapPinProvider.hideMembers()
 end
 
 function EzWoW_SmartFishingPinMixin:SetPassThroughButtons(...)
@@ -226,17 +251,140 @@ end
 local MapDataProvider = CreateFromMixins(MapCanvasDataProviderMixin)
 
 function MapDataProvider:RemoveAllData()
+    WorldMapPinProvider.hideMembers()
     self:GetMap():RemoveAllPinsByTemplate(TEMPLATE)
 end
 
-function WorldMapPinProvider.addSpots(map, mapID, source, kind, filter)
+function WorldMapPinProvider.collectSpots(mapID, source, kind, filter, out)
     for _, entry in ipairs(ns:CollectSpots(mapID, source)) do
         if not filter or entry.spot.fish[filter] then
             entry.kind = kind
-            map:AcquirePin(TEMPLATE, entry)
+            out[#out + 1] = entry
         end
     end
 end
+
+-- Pins of one kind closer than THIN_PX (on screen, at the map's zoom) are
+-- thinned out: the strongest one is shown and keeps the others in .members
+-- (its "+N" label; hovering it shows them as small dots). Zooming in shows
+-- them apart again.
+local THIN_PX = 18
+local function pinWeight(entry)
+    if entry.kind == "water" then return tonumber(entry.pct) or 0 end
+    if entry.spot then return tonumber(entry.spot.n) or 0 end
+    return 0
+end
+
+function WorldMapPinProvider.thin(map, list)
+    for i, entry in ipairs(list) do
+        entry.members = nil
+        entry.order = i
+    end
+    local canvas = map.GetCanvas and map:GetCanvas()
+    local cw, ch = canvas and canvas:GetWidth() or 0, canvas and canvas:GetHeight() or 0
+    local scale = map.GetCanvasScale and map:GetCanvasScale() or 1
+    if not (cw > 0 and ch > 0 and scale and scale > 0) or #list < 2 then return list end
+    local px = THIN_PX * (ns.settings.pinScale or 1)
+    local tx, ty = px / (cw * scale), px / (ch * scale)
+    table.sort(list, function(a, b)
+        local wa, wb = pinWeight(a), pinWeight(b)
+        if wa ~= wb then return wa > wb end
+        return a.order < b.order
+    end)
+    local shown = {}
+    for _, entry in ipairs(list) do
+        local host
+        for _, kept in ipairs(shown) do
+            local dx, dy = (entry.x - kept.x) / tx, (entry.y - kept.y) / ty
+            if dx * dx + dy * dy < 1 then host = kept break end
+        end
+        if host then
+            host.members = host.members or {}
+            host.members[#host.members + 1] = entry
+        else
+            shown[#shown + 1] = entry
+        end
+    end
+    return shown
+end
+
+-- the hovered pin's others: small round dots on the map canvas (no mouse)
+local memberLayer, memberDots = nil, {}
+
+function WorldMapPinProvider.hideMembers()
+    if memberLayer then memberLayer:Hide() end
+end
+
+local function memberIcon(entry)
+    local kind = entry.kind or "own"
+    local id
+    if kind == "pool" then
+        id = entry.poolType and entry.poolType.fish
+    elseif kind == "water" then
+        id = entry.id
+    elseif entry.spot then
+        id = ns.settings.filterFish or ns:GetTopCaughtFishList(entry.spot)
+    end
+    return id and ns:ItemIcon(id) or StyleService.ICON_INNER
+end
+
+function WorldMapPinProvider.showMembers(pin)
+    local entry = pin and pin.entry
+    local members = entry and entry.members
+    local map = MapDataProvider:GetMap()
+    if type(members) ~= "table" or #members == 0 or not map then return end
+    local canvas = map.GetCanvas and map:GetCanvas()
+    if not canvas then return end
+    if not memberLayer then
+        memberLayer = CreateFrame("Frame", nil, canvas)
+        memberLayer:SetAllPoints(canvas)
+        memberLayer:EnableMouse(false)
+    end
+    memberLayer:SetFrameStrata(pin:GetFrameStrata())
+    memberLayer:SetFrameLevel(math.max(1, pin:GetFrameLevel() - 1))
+    local cw, ch = canvas:GetWidth(), canvas:GetHeight()
+    local scale = map.GetCanvasScale and map:GetCanvasScale() or 1
+    -- the same size on screen at any zoom (the layer grows with the canvas)
+    local size = 11 * (ns.settings.pinScale or 1) / math.max(0.1, scale or 1)
+    local ring = RING[entry.kind or "own"] or RING.own
+    for i, other in ipairs(members) do
+        local dot = memberDots[i]
+        if not dot then
+            dot = CreateFrame("Frame", nil, memberLayer)
+            dot:EnableMouse(false)
+            dot.ring = dot:CreateTexture(nil, "BACKGROUND")
+            dot.ring:SetAllPoints()
+            dot.icon = dot:CreateTexture(nil, "ARTWORK")
+            dot.icon:SetPoint("TOPLEFT", 1, -1)
+            dot.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+            StyleService:Round(dot, dot.ring)
+            StyleService:Round(dot, dot.icon)
+            memberDots[i] = dot
+        end
+        dot:SetSize(size, size)
+        dot:ClearAllPoints()
+        dot:SetPoint("CENTER", memberLayer, "TOPLEFT", other.x * cw, -other.y * ch)
+        dot.ring:SetColorTexture(ring[1], ring[2], ring[3], ring[4] or 1)
+        dot.icon:SetTexture(memberIcon(other))
+        dot:Show()
+    end
+    for i = #members + 1, #memberDots do memberDots[i]:Hide() end
+    memberLayer:Show()
+end
+
+-- zooming: thinned out again for the new scale (once the zoom settles)
+local rethinToken = 0
+function MapDataProvider:OnCanvasScaleChanged()
+    rethinToken = rethinToken + 1
+    local token = rethinToken
+    if not (C_Timer and C_Timer.After) then return end
+    C_Timer.After(0.3, function()
+        if token == rethinToken and WorldMapFrame and WorldMapFrame:IsShown() and MapDataProvider:GetMap() then
+            MapDataProvider:RefreshAllData()
+        end
+    end)
+end
+MapDataProvider.OnCanvasSizeChanged = MapDataProvider.OnCanvasScaleChanged
 
 function MapDataProvider:RefreshAllData()
     self:RemoveAllData()
@@ -261,22 +409,26 @@ function MapDataProvider:RefreshAllData()
 
     -- a zone map: the water where each fishing table applies (the chosen fish, or
     -- the most likely fish of every spot)
+    local water, pools, shared, own = {}, {}, {}, {}
     if set.showExpected and ns.WaterSpotsOnMap then
         for _, spot in ipairs(ns:WaterSpotsOnMap(mapID, filter)) do
             spot.kind, spot.mapID, spot.skill = "water", mapID, spot.s
-            map:AcquirePin(TEMPLATE, spot)
+            water[#water + 1] = spot
         end
     end
-
     if set.showPools then
-        for _, entry in ipairs(ns:PoolsOnMap(mapID, filter)) do
+        for _, entry in ipairs(ns:PoolsOnMap(mapID, filter)) do pools[#pools + 1] = entry end
+    end
+    if set.showShared and ns.db.shared then
+        WorldMapPinProvider.collectSpots(mapID, ns.db.shared, "shared", filter, shared)
+    end
+    WorldMapPinProvider.collectSpots(mapID, ns.db.spots, "own", filter, own)
+    -- (in this order: own spots on top)
+    for _, list in ipairs({ water, pools, shared, own }) do
+        for _, entry in ipairs(WorldMapPinProvider.thin(map, list)) do
             map:AcquirePin(TEMPLATE, entry)
         end
     end
-    if set.showShared and ns.db.shared then
-        WorldMapPinProvider.addSpots(map, mapID, ns.db.shared, "shared", filter)
-    end
-    WorldMapPinProvider.addSpots(map, mapID, ns.db.spots, "own", filter)
 end
 
 function ns:RefreshPins()
