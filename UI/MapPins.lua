@@ -3,6 +3,15 @@
 -- UI/MapPins.lua : WorldMap Fishing Spot Pin Mixin & Canvas Data Provider
 --===========================================================================
 local ADDON, ns = ...
+-- every EzWoW mark on the maps can be turned off at once, and the marks only
+-- the shared records make apart (Libs/EzWoWShare MapMarksOn / SharedMarksOn)
+local function ezMapOn(sharedOnly)
+    local share = _G.EzWoW_Share
+    local fn = type(share) == "table" and share[sharedOnly and "SharedMarksOn" or "MapMarksOn"]
+    if type(fn) ~= "function" then return true end
+    local ok, on = pcall(fn)
+    return not ok or on ~= false
+end
 local type, pairs, ipairs, tonumber, tostring, select, pcall = type, pairs, ipairs, tonumber, tostring, select, pcall
 -- frames on the open map are made without a parent and put in afterwards (Libs/EzWoWGamePad: MakeFrame)
 local CreateFrame = (ns.GamePad and ns.GamePad.MakeFrame) or CreateFrame
@@ -519,7 +528,7 @@ MapDataProvider.OnCanvasSizeChanged = MapDataProvider.OnCanvasScaleChanged
 function MapDataProvider:RefreshAllData()
     self:RemoveAllData()
     local set = ns.settings
-    if not set or not set.showPins then return end
+    if not set or not set.showPins or not ezMapOn() then return end
     local map = self:GetMap()
     local mapID = map:GetMapID()
     local filter = set.filterFish
@@ -549,7 +558,7 @@ function MapDataProvider:RefreshAllData()
     if set.showPools then
         for _, entry in ipairs(ns:PoolsOnMap(mapID, filter)) do pools[#pools + 1] = entry end
     end
-    if set.showShared and ns.db.shared then
+    if set.showShared and ns.db.shared and ezMapOn(true) then
         WorldMapPinProvider.collectSpots(mapID, ns.db.shared, "shared", filter, shared)
     end
     WorldMapPinProvider.collectSpots(mapID, ns.db.spots, "own", filter, own)
@@ -580,3 +589,14 @@ ns:SubscribeAddonEvent("AM_SETTINGS_CHANGED", function(key)
 end)
 
 _G.EzWoW_SmartFishingPinMixin = EzWoW_SmartFishingPinMixin
+
+-- the EzWoW map marks turned on or off (Libs/EzWoWShare settings window)
+do
+    local share = _G.EzWoW_Share
+    if type(share) == "table" and type(share.RegisterCallback) == "function" then
+        share.RegisterCallback("EzWoW-SmartFishing-Marks", function(kinds)
+            if type(kinds) ~= "table" or not kinds.mapMarks then return end
+            if ns.RefreshPins then pcall(ns.RefreshPins, ns) end
+        end)
+    end
+end

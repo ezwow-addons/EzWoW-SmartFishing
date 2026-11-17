@@ -3,6 +3,14 @@
 -- Modules/TooltipHook.lua : Fish Item Tooltip Catch Count & Top Zone Hook
 --===========================================================================
 local _, ns = ...
+-- every EzWoW line on the game's tooltips can be turned off at once (Game Menu >
+-- Options > AddOns > EzWoW - Data Sharing; Libs/EzWoWShare TooltipLinesOn)
+local function ezTipsOn()
+    local share = _G.EzWoW_Share
+    if type(share) ~= "table" or type(share.TooltipLinesOn) ~= "function" then return true end
+    local ok, on = pcall(share.TooltipLinesOn)
+    return not ok or on ~= false
+end
 
 -- The "EzWoW - ..." name line at the end of tooltip additions is drawn small.
 -- Shared by the EzWoW addons: the first one loaded sets it up.
@@ -111,7 +119,7 @@ local function tagTooltip(tooltipFrame)
 end
 
 function TooltipCatchAdvisor.OnTooltipItem(tooltipFrame, tooltipData)
-    if not ns.settings or not ns.settings.itemTooltip then return end
+    if not ns.settings or not ns.settings.itemTooltip or not ezTipsOn() then return end
     if tooltipFrame ~= GameTooltip and tooltipFrame ~= ItemRefTooltip then return end
     local linesBefore = tooltipLineCount(tooltipFrame)
     TooltipCatchAdvisor.AddItemLines(tooltipFrame, tooltipData)

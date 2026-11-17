@@ -103,6 +103,8 @@ function SettingsDialog.buildConfigWindow()
     SettingsDialog.definePopups()
 
     local windowFrame = CreateFrame("Frame", "EzWoW_SmartFishingConfig", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    -- (taller than the screen: shrunk to fit, Libs/EzWoWGamePad)
+    if ns.GamePad and ns.GamePad.KeepOnScreen then ns.GamePad.KeepOnScreen(windowFrame) end
     windowFrame:SetSize(460, 728)
     windowFrame:SetPoint("CENTER")
     windowFrame:SetFrameStrata("FULLSCREEN_DIALOG")
