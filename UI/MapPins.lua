@@ -4,6 +4,22 @@
 --===========================================================================
 local ADDON, ns = ...
 local type, pairs, ipairs, tonumber, tostring, select, pcall = type, pairs, ipairs, tonumber, tostring, select, pcall
+-- frames on the open map are made without a parent and put in afterwards (Libs/EzWoWGamePad: MakeFrame)
+local CreateFrame = (ns.GamePad and ns.GamePad.MakeFrame) or CreateFrame
+
+-- With the gamepad UI on, the pins are made outside the map's pin pools: the map runs the
+-- mouse code of the pins near its gamepad cursor itself, and addon code there taints its
+-- gamepad steps (Libs/EzWoWGamePad: AcquireMapPin / RemoveMapPins)
+local function acquirePin(map, template, ...)
+    local pad = ns.GamePad
+    if pad and pad.AcquireMapPin then return pad.AcquireMapPin(map, template, ...) end
+    return map:AcquirePin(template, ...)
+end
+local function removePins(map, template)
+    local pad = ns.GamePad
+    if pad and pad.RemoveMapPins then return pad.RemoveMapPins(map, template) end
+    map:RemoveAllPinsByTemplate(template)
+end
 
 local WorldMapPinProvider = ns.WorldMapPinProvider or {}
 ns.WorldMapPinProvider = WorldMapPinProvider
@@ -299,7 +315,7 @@ local MapDataProvider = CreateFromMixins(MapCanvasDataProviderMixin)
 
 function MapDataProvider:RemoveAllData()
     WorldMapPinProvider.hideMembers()
-    self:GetMap():RemoveAllPinsByTemplate(TEMPLATE)
+    removePins(self:GetMap(), TEMPLATE)
 end
 
 function WorldMapPinProvider.collectSpots(mapID, source, kind, filter, out)
@@ -311,15 +327,38 @@ function WorldMapPinProvider.collectSpots(mapID, source, kind, filter, out)
     end
 end
 
--- Pins of one kind closer than THIN_PX (on screen, at the map's zoom) are
--- thinned out: the strongest one is shown and keeps the others in .members
--- (its "+N" label; hovering it shows them as small dots). Zooming in shows
--- them apart again.
-local THIN_PX = 18
+-- Pins of one kind closer than THIN_PX of that kind (on screen, at the map's
+-- zoom) are thinned out: the strongest one is shown and keeps the others in
+-- .members (its "+N" label; hovering it shows them as small dots). Water spots
+-- with the same chance (the same fishing table) are merged up to SAME_WATER_PX
+-- apart. Then a pin that overlaps a pin of a more important kind (own > shared
+-- > pool > water) joins that one (CROSS_PX). Zooming in shows them apart again.
+local THIN_PX = { water = 34, pool = 28, shared = 28, own = 28 }
+local SAME_WATER_PX = 80
+local CROSS_PX = 24
 local function pinWeight(entry)
     if entry.kind == "water" then return tonumber(entry.pct) or 0 end
     if entry.spot then return tonumber(entry.spot.n) or 0 end
     return 0
+end
+
+-- map units (0..1) per screen pixel across and down, or nil before the map is laid out
+local function pixelSize(map)
+    local canvas = map.GetCanvas and map:GetCanvas()
+    local cw, ch = canvas and canvas:GetWidth() or 0, canvas and canvas:GetHeight() or 0
+    local scale = map.GetCanvasScale and map:GetCanvasScale() or 1
+    if not (cw > 0 and ch > 0 and scale and scale > 0) then return nil end
+    return 1 / (cw * scale), 1 / (ch * scale)
+end
+
+local function within(a, b, ux, uy, px)
+    local dx, dy = (a.x - b.x) / (ux * px), (a.y - b.y) / (uy * px)
+    return dx * dx + dy * dy < 1
+end
+
+local function sameChance(a, b)
+    return a.kind == "water" and b.kind == "water" and a.pct and b.pct
+        and math.floor(a.pct + 0.5) == math.floor(b.pct + 0.5)
 end
 
 function WorldMapPinProvider.thin(map, list)
@@ -327,12 +366,9 @@ function WorldMapPinProvider.thin(map, list)
         entry.members = nil
         entry.order = i
     end
-    local canvas = map.GetCanvas and map:GetCanvas()
-    local cw, ch = canvas and canvas:GetWidth() or 0, canvas and canvas:GetHeight() or 0
-    local scale = map.GetCanvasScale and map:GetCanvasScale() or 1
-    if not (cw > 0 and ch > 0 and scale and scale > 0) or #list < 2 then return list end
-    local px = THIN_PX * (ns.settings.pinScale or 1)
-    local tx, ty = px / (cw * scale), px / (ch * scale)
+    local ux, uy = pixelSize(map)
+    if not ux or #list < 2 then return list end
+    local scaleBy = ns.settings.pinScale or 1
     table.sort(list, function(a, b)
         local wa, wb = pinWeight(a), pinWeight(b)
         if wa ~= wb then return wa > wb end
@@ -340,10 +376,14 @@ function WorldMapPinProvider.thin(map, list)
     end)
     local shown = {}
     for _, entry in ipairs(list) do
+        local px = (THIN_PX[entry.kind] or 28) * scaleBy
         local host
         for _, kept in ipairs(shown) do
-            local dx, dy = (entry.x - kept.x) / tx, (entry.y - kept.y) / ty
-            if dx * dx + dy * dy < 1 then host = kept break end
+            if within(entry, kept, ux, uy, px)
+                or (sameChance(entry, kept) and within(entry, kept, ux, uy, SAME_WATER_PX * scaleBy)) then
+                host = kept
+                break
+            end
         end
         if host then
             host.members = host.members or {}
@@ -353,6 +393,37 @@ function WorldMapPinProvider.thin(map, list)
         end
     end
     return shown
+end
+
+-- pins of several kinds, each list thinned: a pin that overlaps a pin of a
+-- kind placed before it (the lists come most important first) joins that pin,
+-- with its own members. Returns the kept lists in the same order.
+function WorldMapPinProvider.thinAcross(map, lists)
+    local ux, uy = pixelSize(map)
+    local placed, kept = {}, {}
+    local px = CROSS_PX * (ns.settings.pinScale or 1)
+    for i, list in ipairs(lists) do
+        local out = {}
+        for _, entry in ipairs(WorldMapPinProvider.thin(map, list)) do
+            local host
+            if ux then
+                for _, other in ipairs(placed) do
+                    if within(entry, other, ux, uy, px) then host = other break end
+                end
+            end
+            if host then
+                host.members = host.members or {}
+                host.members[#host.members + 1] = entry
+                for _, m in ipairs(entry.members or {}) do host.members[#host.members + 1] = m end
+                entry.members = nil
+            else
+                out[#out + 1] = entry
+                placed[#placed + 1] = entry
+            end
+        end
+        kept[i] = out
+    end
+    return kept
 end
 
 -- the hovered pin's others: small round dots on the map canvas (no mouse)
@@ -419,9 +490,21 @@ function WorldMapPinProvider.showMembers(pin)
     memberLayer:Show()
 end
 
--- zooming: thinned out again for the new scale (once the zoom settles)
+-- zooming: thinned out again for the new scale (once the zoom settles). The map
+-- calls this on every frame in some states (the gamepad cursor on the map): only
+-- a real change of the canvas counts, or the refresh would wait for ever.
 local rethinToken = 0
+local function canvasKey()
+    local map = WorldMapFrame
+    local canvasFrame = map and map.GetCanvas and map:GetCanvas()
+    local scale = map and map.GetCanvasScale and map:GetCanvasScale()
+    if not (canvasFrame and scale) then return nil end
+    return string.format("%.3f:%.1f:%.1f", scale, canvasFrame:GetWidth() or 0, canvasFrame:GetHeight() or 0)
+end
 function MapDataProvider:OnCanvasScaleChanged()
+    local key = canvasKey()
+    if key and key == self.canvasKey then return end
+    self.canvasKey = key
     rethinToken = rethinToken + 1
     local token = rethinToken
     if not (C_Timer and C_Timer.After) then return end
@@ -446,7 +529,7 @@ function MapDataProvider:RefreshAllData()
             local rowEntry = ns:GetChildZoneBoundaryRect(zoneRef.mapID, mapID)
             if rowEntry and zoneRef.pct >= 0.5 then
                 local zdVal = ns.Data.zones[zoneRef.mapID]
-                map:AcquirePin(TEMPLATE, {
+                acquirePin(map, TEMPLATE, {
                     kind = "zone", mapID = zoneRef.mapID, child = true, pct = zoneRef.pct, skill = zoneRef.s or (zdVal and zdVal.s),
                     x = (rowEntry[1] + rowEntry[2]) / 2, y = (rowEntry[3] + rowEntry[4]) / 2,
                 })
@@ -470,10 +553,11 @@ function MapDataProvider:RefreshAllData()
         WorldMapPinProvider.collectSpots(mapID, ns.db.shared, "shared", filter, shared)
     end
     WorldMapPinProvider.collectSpots(mapID, ns.db.spots, "own", filter, own)
-    -- (in this order: own spots on top)
-    for _, list in ipairs({ water, pools, shared, own }) do
-        for _, entry in ipairs(WorldMapPinProvider.thin(map, list)) do
-            map:AcquirePin(TEMPLATE, entry)
+    -- thinned most important first; placed in the other order (own spots on top)
+    local kept = WorldMapPinProvider.thinAcross(map, { own, shared, pools, water })
+    for i = #kept, 1, -1 do
+        for _, entry in ipairs(kept[i]) do
+            acquirePin(map, TEMPLATE, entry)
         end
     end
 end

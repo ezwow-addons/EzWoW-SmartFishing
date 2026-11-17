@@ -85,6 +85,19 @@ function SettingsDialog.definePopups()
     }
 end
 
+-- One of the questions above. With the gamepad UI on, the game's popup opened from
+-- addon code breaks the game's gamepad navigation: the EzWoW question window then
+-- (Libs/EzWoWGamePad: Confirm)
+function SettingsDialog.ask(popupName)
+    local def = StaticPopupDialogs and StaticPopupDialogs[popupName]
+    local pad = ns.GamePad
+    if def and pad and pad.Confirm and pad.IsActive and pad.IsActive() then
+        pad.Confirm(def.text, def.OnAccept, nil, def.button1, def.button2)
+        return
+    end
+    if StaticPopup_Show then StaticPopup_Show(popupName) end
+end
+
 function SettingsDialog.buildConfigWindow()
     if configFrame then return configFrame end
     SettingsDialog.definePopups()
@@ -453,13 +466,13 @@ function SettingsDialog.buildConfigWindow()
     end)
 
     createStyledButton(20, -626, 134, 22, function() return L["현재 지역 낚시 지점"] .. " " .. L["지우기"] end, false, function()
-        StaticPopup_Show("EZWOWSMARTFISHING_RESET_ZONE")
+        SettingsDialog.ask("EZWOWSMARTFISHING_RESET_ZONE")
     end)
     createStyledButton(163, -626, 134, 22, function() return L["공유받은 기록"] .. " " .. L["지우기"] end, false, function()
-        StaticPopup_Show("EZWOWSMARTFISHING_RESET_SHARED")
+        SettingsDialog.ask("EZWOWSMARTFISHING_RESET_SHARED")
     end)
     createStyledButton(306, -626, 134, 22, function() return L["모든 낚시 기록"] .. " " .. L["전부 지우기"] end, false, function()
-        StaticPopup_Show("EZWOWSMARTFISHING_RESET_ALL")
+        SettingsDialog.ask("EZWOWSMARTFISHING_RESET_ALL")
     end)
 
     createStyledButton(20, -664, 204, 28, function() return L["세계지도 버튼 위치"] .. " · " .. L["아이콘"] .. " " .. L["처음 위치로"] end, false, function()
@@ -653,8 +666,8 @@ function ns:SetLanguage(code)
     end
     -- the journal window writes its fixed labels once, when it is first opened: once it
     -- exists, reloading the interface brings them into the new language
-    if _G.EzWoW_SmartFishingWindow and StaticPopup_Show then
-        StaticPopup_Show("WOWSMARTFISHING_RELOAD")
+    if _G.EzWoW_SmartFishingWindow then
+        SettingsDialog.ask("WOWSMARTFISHING_RELOAD")
     end
     ns:PublishAddonEvent("AM_DATA_CHANGED")
     ns:Print(L["애드온 언어: %s"]:format(code == "auto" and L["자동 (게임 언어)"] or ns.LANGUAGE_NAMES[code]))
