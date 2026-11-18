@@ -1,7 +1,3 @@
-# v2.0.28
+# v2.0.29
 
-### 한국어
-- 새 지역(강물터·제프라스 섬·하이잘 산)에서도 낚이는 물고기와 확률, 권장 숙련도가 나옵니다.
-
-### English
-- The new zones (Riverglades, Zephras Isle, Mount Hyjal) now show their catches, chances and recommended skill.
+- 정식 서버에 맞게 표시 내용을 갱신했습니다. / Updated displayed text for the live realm.
