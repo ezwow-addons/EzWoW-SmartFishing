@@ -52,7 +52,11 @@ function ZoneDropRateLegend.buildRow(parent, i)
         if not self.selected then self.bg:SetColorTexture(unpack(StyleService.hover)) end
         if self.itemID then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetItemByID(self.itemID)
+            -- (the item tooltip's own tag waits: one tag goes under the hint lines)
+            local advisor = ns.TooltipCatchAdvisor
+            if advisor then advisor.holdTag = true end
+            pcall(GameTooltip.SetItemByID, GameTooltip, self.itemID)
+            if advisor then advisor.holdTag = nil end
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(self.hint or "", unpack(StyleService.accent))
             if self.hint2 then GameTooltip:AddLine(self.hint2, 0.85, 0.86, 0.90, true) end

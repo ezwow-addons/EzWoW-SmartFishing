@@ -97,6 +97,8 @@ local L = ns.L
 local MAX_DISPLAYED_ZONES = 3
 
 -- Attribution line under this addon's block: once per tooltip display, only when lines were added.
+-- TooltipCatchAdvisor.holdTag: a window of this addon showing an item adds lines of its own after the
+-- item's and puts the one tag under them (UI/MapLegend.lua)
 local TAG_TITLE = ns.name or "EzWoW - Smart Fishing"
 local taggedTooltips = setmetatable({}, { __mode = "k" })
 local tagClearHooked = setmetatable({}, { __mode = "k" })
@@ -109,6 +111,7 @@ local function tooltipLineCount(tooltipFrame)
 end
 
 local function tagTooltip(tooltipFrame)
+    if TooltipCatchAdvisor.holdTag then return end
     if taggedTooltips[tooltipFrame] or type(tooltipFrame.AddDoubleLine) ~= "function" then return end
     if not tagClearHooked[tooltipFrame] and type(tooltipFrame.HookScript) == "function" then
         tagClearHooked[tooltipFrame] = true
