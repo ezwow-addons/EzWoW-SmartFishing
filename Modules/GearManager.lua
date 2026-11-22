@@ -13,10 +13,68 @@ local equipTargetItemSlot = (C_Item and C_Item.EquipItemByName) or EquipItemByNa
 
 -- notes about a swap that worked can be turned off in the options;
 -- a swap that could not be made is always told
-local function swapNote(msg)
-    if ns.settings and ns.settings.swapMessages == false then return end
-    ns:Print(msg)
+-- The notes of one pole swap (gear, interact settings) go out as one short line, once the item names
+-- are in (2026-11-22, user screenshot: "[회생의 마법막대] 벗고 불러오는 중... 착용 ..." and a second long
+-- line about the interact settings). text: a string, or a function that builds it when it goes out;
+-- ids: items whose names it shows; back: add "everything returns when you stop fishing" once.
+local NOTE_GATHER, NOTE_WAIT, NOTE_WAITS = 0.6, 0.5, 6
+local notes, noteQueued, noteWaits = {}, false, 0
+local function nameKnown(id)
+    if not id then return true end
+    local name = (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id))
+        or (GetItemInfo and GetItemInfo(id))
+    if name then return true end
+    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+    return false
 end
+local function flushNotes()
+    noteQueued = false
+    -- never a chat line in combat (it taints the chat history): after the fight
+    if InCombatLockdown and InCombatLockdown() and C_Timer and C_Timer.After then
+        noteQueued = true
+        C_Timer.After(1, flushNotes)
+        return
+    end
+    local ready = true
+    for _, n in ipairs(notes) do
+        for _, id in pairs(n.ids or {}) do
+            if not nameKnown(id) then ready = false end
+        end
+    end
+    if not ready and noteWaits < NOTE_WAITS and C_Timer and C_Timer.After then
+        noteWaits = noteWaits + 1
+        noteQueued = true
+        C_Timer.After(NOTE_WAIT, flushNotes)
+        return
+    end
+    local parts, back = {}, false
+    for _, n in ipairs(notes) do
+        local ok, text = true, n.text
+        if type(text) == "function" then ok, text = pcall(text) end
+        if ok and type(text) == "string" and text ~= "" then parts[#parts + 1] = text end
+        if n.back then back = true end
+    end
+    notes, noteWaits = {}, 0
+    if #parts == 0 then return end
+    local line = table.concat(parts, " · ")
+    if back then line = line .. ". " .. L["낚시를 마치면 모두 원래대로 돌아갑니다."] end
+    ns:Print(line)
+end
+-- now: out at once (the swap as a fight starts: the lockdown follows right after this)
+local function swapNote(text, ids, back, now)
+    if ns.settings and ns.settings.swapMessages == false then return end
+    if now then
+        local ok, line = true, text
+        if type(line) == "function" then ok, line = pcall(line) end
+        if ok and type(line) == "string" and line ~= "" then ns:Print(line) end
+        return
+    end
+    notes[#notes + 1] = { text = text, ids = ids, back = back }
+    if noteQueued then return end
+    noteQueued = true
+    if C_Timer and C_Timer.After then C_Timer.After(NOTE_GATHER, flushNotes) else flushNotes() end
+end
+ns.SwapNote = swapNote
 
 -- The weapons worn just before the pole goes on are saved per character
 -- (so /reload or relogging with the pole in hand still knows them) and
@@ -76,7 +134,9 @@ ns:SubscribeAddonEvent("PLAYER_EQUIPMENT_CHANGED", function(slot)
         -- pole put on by hand (drag / macro): fall back to the last weapons seen
         if not FishingGearManager.savedWeapons() and lastWeapons[16] then
             FishingGearManager.rememberWeapons(lastWeapons)
-            swapNote(string.format(L["낚싯대 착용 전 장비를 기억했어요: %s"], FishingGearManager.weaponSetText(lastWeapons)))
+            local set = lastWeapons
+            swapNote(function() return string.format(L["낚싯대 착용 전 장비를 기억했어요: %s"], FishingGearManager.weaponSetText(set)) end,
+                { set[16], set[17] })
         end
     elseif ns.db then
         lastWeapons = FishingGearManager.wornWeapons()
@@ -97,7 +157,9 @@ ns:SubscribeAddonEvent("PLAYER_REGEN_DISABLED", function()
     poleBeforeCombat = GetInventoryItemID("player", 16)
     local saved = FishingGearManager.savedWeapons()
     if FishingGearManager.equipWeaponSet(saved) then
-        swapNote(string.format(L["전투 시작: %s 벗고 %s 착용"], FishingGearManager.itemText(poleBeforeCombat), FishingGearManager.weaponSetText(saved)))
+        local pole = poleBeforeCombat
+        swapNote(function() return string.format(L["전투 시작: %s 벗고 %s 착용"], FishingGearManager.itemText(pole), FishingGearManager.weaponSetText(saved)) end,
+            { pole, saved and saved[16], saved and saved[17] }, false, true)
     else
         poleBeforeCombat = nil
     end
@@ -111,7 +173,7 @@ ns:SubscribeAddonEvent("PLAYER_REGEN_ENABLED", function()
         C_Timer.After(0.5, function()
             if not InCombatLockdown() then
                 equipTargetItemSlot(pole, 16)
-                swapNote(string.format(L["전투 끝: 다시 %s 착용"], FishingGearManager.itemText(pole)))
+                swapNote(function() return string.format(L["전투 끝: 다시 %s 착용"], FishingGearManager.itemText(pole)) end, { pole })
             end
         end)
     elseif not FishingGearManager.poleInMainHand() then
@@ -174,7 +236,7 @@ function ns:EquipBestPole()
         
         if bagID and bagBonus > FishingGearManager.resolvePoleBonus(worn) then
             equipTargetItemSlot(bagID, 16)
-            swapNote(L["더 좋은 낚싯대로 바꿨어요: "] .. ns:ItemName(bagID))
+            swapNote(function() return L["더 좋은 낚싯대로 바꿨어요: "] .. ns:ItemName(bagID) end, { bagID })
         elseif FishingGearManager.poleInMainHand() then
             ns:EquipWeapons()
         end
@@ -188,10 +250,11 @@ function ns:EquipBestPole()
     FishingGearManager.rememberWeapons(worn)
     equipTargetItemSlot(bagID, 16)
     if worn[16] then
-        swapNote(string.format(L["%s 벗고 %s 착용 (낚시 +%d). 낚시를 마치면 원래 장비로 돌아갑니다."],
-            FishingGearManager.weaponSetText(worn), FishingGearManager.itemText(bagID), bagBonus))
+        swapNote(function()
+            return string.format(L["%s → %s (낚시 +%d)"], FishingGearManager.weaponSetText(worn), FishingGearManager.itemText(bagID), bagBonus)
+        end, { worn[16], worn[17], bagID }, true)
     else
-        swapNote(string.format(L["%s 착용 (낚시 +%d)"], FishingGearManager.itemText(bagID), bagBonus))
+        swapNote(function() return string.format(L["%s 착용 (낚시 +%d)"], FishingGearManager.itemText(bagID), bagBonus) end, { bagID }, true)
     end
 end
 
@@ -199,7 +262,8 @@ function ns:EquipWeapons()
     local saved = FishingGearManager.savedWeapons()
     local pole = GetInventoryItemID("player", 16)
     if FishingGearManager.equipWeaponSet(saved) then
-        swapNote(string.format(L["%s 벗고 원래 장비 %s 착용"], FishingGearManager.itemText(pole), FishingGearManager.weaponSetText(saved)))
+        swapNote(function() return string.format(L["%s 벗고 원래 장비 %s 착용"], FishingGearManager.itemText(pole), FishingGearManager.weaponSetText(saved)) end,
+            { pole, saved and saved[16], saved and saved[17] })
         return true
     end
     ns:Print(L["돌아갈 무기를 가방에서 찾지 못했어요."])

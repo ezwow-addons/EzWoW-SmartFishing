@@ -375,6 +375,15 @@ function DoubleClickCastEngine.cvarsBeforePole()
     return ns.db.cvarsBeforePole
 end
 
+-- no chat lines in the first seconds after login or /reload (they crowd the login chat): a note then
+-- waits (2026-11-22 dev check: the interact note went out right after login)
+local LOGIN_QUIET = 25
+local loadedAt = GetTime and GetTime() or 0
+local function afterLogin(fn)
+    local wait = LOGIN_QUIET - ((GetTime and GetTime() or 0) - loadedAt)
+    if wait > 0 and C_Timer and C_Timer.After then C_Timer.After(wait, fn) else fn() end
+end
+
 function DoubleClickCastEngine.commitSoftInteract(forceRestore)
     if InCombatLockdown() and not forceRestore then
         DoubleClickCastEngine.softInteractPending = true
@@ -404,10 +413,21 @@ function DoubleClickCastEngine.commitSoftInteract(forceRestore)
     local widened = next(cvarsBeforePole) ~= nil
     if widened and (applied or not DoubleClickCastEngine.softInteractAnnounced) then
         DoubleClickCastEngine.softInteractAnnounced = true
-        if not (ns.settings and ns.settings.swapMessages == false) then ns:Print(L["낚싯대를 착용해서 찌를 잘 인식하도록 상호작용 설정을 바꿨어요. 낚시를 마치면 원래대로 돌아갑니다."]) end
+        afterLogin(function()
+            -- (still widened: the pole may be off again by then)
+            if next(DoubleClickCastEngine.cvarsBeforePole()) == nil then return end
+            -- joins the pole swap's line (Modules/GearManager.lua)
+            if ns.SwapNote then
+                ns.SwapNote(L["상호작용 설정을 낚시용으로 바꿈"], nil, true)
+            elseif not (ns.settings and ns.settings.swapMessages == false) then
+                ns:Print(L["낚싯대를 착용해서 찌를 잘 인식하도록 상호작용 설정을 바꿨어요. 낚시를 마치면 원래대로 돌아갑니다."])
+            end
+        end)
     elseif restored then
         DoubleClickCastEngine.softInteractAnnounced = nil
-        if not (ns.settings and ns.settings.swapMessages == false) then ns:Print(L["상호작용 설정을 낚싯대 착용 전 값으로 되돌렸어요."]) end
+        if not (ns.settings and ns.settings.swapMessages == false) then
+            afterLogin(function() ns:Print(L["상호작용 설정을 낚싯대 착용 전 값으로 되돌렸어요."]) end)
+        end
     end
 end
 
