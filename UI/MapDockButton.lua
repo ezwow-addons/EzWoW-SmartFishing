@@ -337,7 +337,7 @@ ns:SubscribeAddonEvent("AM_SETTINGS_CHANGED", function(key)
 end)
 ns:SubscribeAddonEvent("AM_DATA_CHANGED", WorldMapFilterButton.refreshLabel)
 local pending = false
-ns:SubscribeAddonEvent("GET_ITEM_INFO_RECEIVED", function()
+local function legendNamesArrived()
     if pending or not WorldMapFrame:IsShown() then return end
     pending = true
     C_Timer.After(0.2, function()
@@ -345,4 +345,7 @@ ns:SubscribeAddonEvent("GET_ITEM_INFO_RECEIVED", function()
         WorldMapFilterButton.refreshLabel()
         ns:UpdateMapLegend()
     end)
-end)
+end
+ns:SubscribeAddonEvent("GET_ITEM_INFO_RECEIVED", legendNamesArrived)
+-- (C_Item.RequestLoadItemDataByID answers only with ITEM_DATA_LOAD_RESULT on this client, 2026-11-22)
+ns:SubscribeAddonEvent("ITEM_DATA_LOAD_RESULT", legendNamesArrived)

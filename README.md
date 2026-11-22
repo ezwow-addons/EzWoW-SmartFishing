@@ -19,7 +19,7 @@ WoW Forever (`Interface: 16001`) · `/ezsf`
 
 ### 화면 미리보기
 
-![설정창](docs/images/ui_ko.png)
+![낚시 도감과 설정창](docs/images/ui_ko.png)
 
 > 실제 게임 화면입니다(WoW Forever, 한국어 클라이언트). 캐릭터 · 다른 플레이어 이름과 채팅 내용은 가렸습니다.
 
@@ -129,7 +129,7 @@ An all-in-one fishing helper. With a pole equipped, **one key (Space by default)
 
 ### Screenshots
 
-![Settings window](docs/images/ui_en.png)
+![Fishing journal and settings](docs/images/ui_en.png)
 
 > In-game screenshots with the addon set to English. The game client is Korean, so game text such as zone, item and spell names stays Korean. Character and player names and chat text are blurred.
 

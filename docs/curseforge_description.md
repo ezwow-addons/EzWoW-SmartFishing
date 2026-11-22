@@ -9,7 +9,7 @@ CurseForge summary (KO): 원버튼 낚시, 자동 미끼·낚싯대 교체, 낚�
 
 An all-in-one fishing helper for WoW Forever. With a pole equipped, one key (Space by default) casts and the same key reels in when the bobber splashes. It applies lures for you, swaps between your pole and weapons, makes the splash easy to hear, keeps a log and journal of your catches, and shows fishing spots, fish schools and catch chances on the World Map.
 
-![Settings window](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-SmartFishing/master/docs/images/ui_en.png)
+![Fishing journal and settings](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-SmartFishing/master/docs/images/ui_en.png)
 
 *In-game screenshots with the addon set to English. The game client is Korean, so game text such as zone, item and spell names stays Korean. Character and player names and chat text are blurred.*
 
@@ -24,7 +24,7 @@ An all-in-one fishing helper for WoW Forever. With a pole equipped, one key (Spa
 
 ### Lures and gear
 - If there is no lure on the pole, the best lure in your bags that your skill allows is applied first.
-- One click equips your best pole and puts your weapons back when you are done; chat tells you what was swapped (this can be turned off in the options).
+- One click equips your best pole and puts your weapons back when you are done; chat tells you in one short line what was swapped (this can be turned off in the options).
 - Swap to weapons when combat starts and back to the pole when it ends.
 
 ### Session HUD and fishing sound
@@ -87,7 +87,7 @@ Languages: English, 한국어, Deutsch, Français, Español, Русский, 简
 
 WoW Forever용 올인원 낚시 애드온입니다. 낚싯대를 들고 키 하나(기본 스페이스)로 던지고, 찌가 물면 같은 키로 건져 올립니다. 미끼를 알아서 바르고, 낚싯대와 무기를 바꿔 주고, 찌 소리를 잘 들리게 하며, 낚시 일지와 도감을 남기고, 세계지도에 낚시 지점 · 물고기 떼 · 어종 확률을 보여 줍니다.
 
-![설정창](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-SmartFishing/master/docs/images/ui_ko.png)
+![낚시 도감과 설정창](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-SmartFishing/master/docs/images/ui_ko.png)
 
 *실제 게임 화면입니다(WoW Forever, 한국어 클라이언트). 캐릭터 · 다른 플레이어 이름과 채팅 내용은 가렸습니다.*
 
@@ -102,7 +102,7 @@ WoW Forever용 올인원 낚시 애드온입니다. 낚싯대를 들고 키 하�
 
 ### 미끼와 장비
 - 낚싯대에 미끼가 없으면 내 숙련으로 쓸 수 있는 가방 속 가장 좋은 미끼를 먼저 바릅니다.
-- 클릭 한 번으로 가장 좋은 낚싯대를 들고, 끝나면 원래 무기로 돌아갑니다. 무엇을 바꿨는지 채팅으로 알려 줍니다(설정에서 끌 수 있음).
+- 클릭 한 번으로 가장 좋은 낚싯대를 들고, 끝나면 원래 무기로 돌아갑니다. 무엇을 바꿨는지 채팅에 한 줄로 알려 줍니다(설정에서 끌 수 있음).
 - 전투가 시작되면 무기로, 끝나면 다시 낚싯대로 바꿉니다.
 
 ### 세션 HUD와 낚시 소리
