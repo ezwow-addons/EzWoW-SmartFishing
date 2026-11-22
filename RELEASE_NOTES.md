@@ -1,9 +1,9 @@
-# v2.0.30
+# v2.0.31
 
 ### 한국어
-- 지도 범례의 물고기 툴팁에 애드온 이름표가 두 번 나오던 문제를 고쳤습니다.
-- 접속 직후 공유용 채널이 공개 채널의 번호(1번)를 차지할 수 있던 문제를 고쳤습니다.
+- 낚싯대 교체 알림을 한 줄로 줄였습니다. 아이템 이름을 불러온 뒤에 보여 주고, 전투 중이나 접속 직후에는 띄우지 않습니다.
+- 게임의 채팅 채널 창을 열 때 "조금 천천히" 경고가 뜨던 문제를 수정했습니다.
 
 ### English
-- Fixed the addon tag showing twice on fish tooltips in the map legend.
-- Fixed the data-sharing channel possibly taking General's number (1) right after login.
+- Pole swap notes are now one short line, shown once item names are loaded and never in combat or right after logging in.
+- Fixed a "slow down" warning when opening the game's chat channel window.
