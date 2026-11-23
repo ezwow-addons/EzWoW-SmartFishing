@@ -176,10 +176,21 @@ function EzWoW_SmartFishingPinMixin:OnAcquired(entry)
     self:SetPosition(entry.x, entry.y)
 end
 
+-- A fish name the game has not loaded yet shows as "Loading..."; the tooltip is drawn
+-- again shortly while one is missing (2026-11-23: two such lines stayed in a spot's
+-- tooltip, "the same line twice").
+local tipNameMissing = false
+local function tipItemName(itemID, plain)
+    local name = ns:ItemName(itemID, plain)
+    if name == L["불러오는 중..."] then tipNameMissing = true end
+    return name
+end
+local TIP_RETRY_MAX = 8
+
 function WorldMapPinProvider.addFishLines(fish, total, filter)
     for index, recordEntry in ipairs(ns:GetSortedFishBreakdown(fish)) do
         if index > MAX_TOOLTIP_FISH then break end
-        local left = "|T" .. ns:ItemIcon(recordEntry.id) .. ":14:14:0:0:64:64:5:59:5:59|t " .. ns:ItemName(recordEntry.id)
+        local left = "|T" .. ns:ItemIcon(recordEntry.id) .. ":14:14:0:0:64:64:5:59:5:59|t " .. tipItemName(recordEntry.id)
         local pct = string.format("%.0f%%", recordEntry.count / total * 100)
         if recordEntry.id == filter then
             GameTooltip:AddDoubleLine(left, pct, 1, 1, 1, StyleService.accent[1], StyleService.accent[2], StyleService.accent[3])
@@ -190,9 +201,12 @@ function WorldMapPinProvider.addFishLines(fish, total, filter)
 end
 
 
-function EzWoW_SmartFishingPinMixin:OnMouseEnter()
+function EzWoW_SmartFishingPinMixin:OnMouseEnter(motion)
     local entry = self.entry
     if not entry then return end
+    -- (a fresh enter starts the redraw count again; "retry" = drawn again for a late name)
+    if motion ~= "retry" then self._ezTipTries = 0 end
+    tipNameMissing = false
     -- the hovered mark (and its label) comes to the front of every map mark and stays there
     mapPinFront().Raise(self)
     self:RingColor(true)
@@ -202,7 +216,7 @@ function EzWoW_SmartFishingPinMixin:OnMouseEnter()
 
     if kind == "zone" then
         GameTooltip:AddLine(ns:MapName(entry.mapID), 1, 1, 1)
-        GameTooltip:AddLine(string.format(L["%s 예상 확률 %.1f%%"], ns:ItemName(filter), entry.pct), unpack(StyleService.muted))
+        GameTooltip:AddLine(string.format(L["%s 예상 확률 %.1f%%"], tipItemName(filter), entry.pct), unpack(StyleService.muted))
         if entry.skill then
             GameTooltip:AddLine(L["권장 숙련 %d"]:format(entry.skill), unpack(StyleService.muted))
         end
@@ -211,7 +225,7 @@ function EzWoW_SmartFishingPinMixin:OnMouseEnter()
     elseif kind == "water" then
         GameTooltip:AddLine(entry.place or ns:MapName(entry.mapID), 1, 1, 1)
         if filter then
-            GameTooltip:AddLine(string.format(L["%s 예상 확률 %.1f%%"], ns:ItemName(filter), entry.pct), unpack(StyleService.muted))
+            GameTooltip:AddLine(string.format(L["%s 예상 확률 %.1f%%"], tipItemName(filter), entry.pct), unpack(StyleService.muted))
         else
             local list = {}
             for id, p in pairs(entry.fish or {}) do list[#list + 1] = { id = id, p = p } end
@@ -219,7 +233,7 @@ function EzWoW_SmartFishingPinMixin:OnMouseEnter()
             for index = 1, math.min(MAX_TOOLTIP_FISH, #list) do
                 local row = list[index]
                 if row.p < 0.5 then break end
-                local left = "|T" .. ns:ItemIcon(row.id) .. ":14:14:0:0:64:64:5:59:5:59|t " .. ns:ItemName(row.id)
+                local left = "|T" .. ns:ItemIcon(row.id) .. ":14:14:0:0:64:64:5:59:5:59|t " .. tipItemName(row.id)
                 GameTooltip:AddDoubleLine(left, string.format("%.0f%%", row.p), 1, 1, 1, 0.7, 0.72, 0.76)
             end
         end
@@ -262,6 +276,15 @@ function EzWoW_SmartFishingPinMixin:OnMouseEnter()
     GameTooltip:Show()
     if _G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.Refit then pcall(_G.EzWoWTooltipTagSizer.Refit, GameTooltip) end
     pcall(WorldMapPinProvider.showMembers, self)
+    -- a name still loading: drawn again half a second later while the mouse stays here
+    if tipNameMissing and C_Timer and (self._ezTipTries or 0) < TIP_RETRY_MAX then
+        self._ezTipTries = (self._ezTipTries or 0) + 1
+        C_Timer.After(0.5, function()
+            if self.entry == entry and GameTooltip:IsOwned(self) and self:IsMouseOver() then
+                self:OnMouseEnter("retry")
+            end
+        end)
+    end
 end
 
 function EzWoW_SmartFishingPinMixin:OnMouseLeave()
