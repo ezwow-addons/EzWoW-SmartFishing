@@ -19,14 +19,14 @@
 ## Notes-esES: Pesca con una tecla, cebo y equipo automáticos, estadísticas de sesión, catálogo, puntos de pesca y bancos en el mapa del mundo, compartidos con hermandad y grupo.
 ## Notes-esMX: Pesca con una tecla, cebo y equipo automáticos, estadísticas de sesión, catálogo, puntos de pesca y bancos en el mapa del mundo, compartidos con hermandad y grupo.
 ## Notes-ruRU: Рыбалка одной кнопкой, авто-наживка и экипировка, статистика сессии, журнал улова, рыбные места и косяки на карте мира с обменом данными в гильдии и группе.
-## Author: qqhrqqhr2
+## Author: ezwow-addons
 ## Version: 2.0.33
 ## Category: EzWoW
 ## X-Credits: open-water catch chances from CMaNGOS Classic-DB (GPL v3)
 ## X-License: GPL-3.0
 ## SavedVariables: EzWoW_SmartFishingDB, EzWoW_SharedData, EzWoW_ShareStore_SmartFishing
 ## IconTexture: Interface\AddOns\EzWoW-SmartFishing\Media\icon
-## X-Website: https://github.com/qqhrqqhr2/EzWoW-SmartFishing
+## X-Website: https://github.com/ezwow-addons/EzWoW-SmartFishing
 ## X-Donate: https://buymeacoffee.com/qqhrqqhr2
 ## X-Curse-Project-ID: 1743389
 ## AddonCompartmentFunc: EzWoW_SmartFishing_OnAddonCompartmentClick

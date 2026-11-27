@@ -9,7 +9,7 @@ CurseForge summary (KO): 원버튼 낚시, 자동 미끼·낚싯대 교체, 낚�
 
 An all-in-one fishing helper for WoW Forever. With a pole equipped, one key (Space by default) casts and the same key reels in when the bobber splashes. It applies lures for you, swaps between your pole and weapons, makes the splash easy to hear, keeps a log and journal of your catches, and shows fishing spots, fish schools and catch chances on the World Map.
 
-![Fishing journal and settings](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-SmartFishing/master/docs/images/ui_en.png)
+![Fishing journal and settings](https://raw.githubusercontent.com/ezwow-addons/EzWoW-SmartFishing/master/docs/images/ui_en.png)
 
 *In-game screenshots with the addon set to English. The game client is Korean, so game text such as zone, item and spell names stays Korean. Character and player names and chat text are blurred.*
 
@@ -87,7 +87,7 @@ Languages: English, 한국어, Deutsch, Français, Español, Русский, 简
 
 WoW Forever용 올인원 낚시 애드온입니다. 낚싯대를 들고 키 하나(기본 스페이스)로 던지고, 찌가 물면 같은 키로 건져 올립니다. 미끼를 알아서 바르고, 낚싯대와 무기를 바꿔 주고, 찌 소리를 잘 들리게 하며, 낚시 일지와 도감을 남기고, 세계지도에 낚시 지점 · 물고기 떼 · 어종 확률을 보여 줍니다.
 
-![낚시 도감과 설정창](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-SmartFishing/master/docs/images/ui_ko.png)
+![낚시 도감과 설정창](https://raw.githubusercontent.com/ezwow-addons/EzWoW-SmartFishing/master/docs/images/ui_ko.png)
 
 *실제 게임 화면입니다(WoW Forever, 한국어 클라이언트). 캐릭터 · 다른 플레이어 이름과 채팅 내용은 가렸습니다.*
 
