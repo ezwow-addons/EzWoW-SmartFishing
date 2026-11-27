@@ -1,7 +1,9 @@
-# v2.0.33
+# v2.0.34
 
 ### 한국어
-- 지도의 낚시 지점 툴팁에서 물고기 이름이 "불러오는 중..."으로 남던 문제를 고쳤습니다. 이름이 들어오면 툴팁을 다시 그립니다.
+- 다른 사용자가 공유한 상점 물건·트레이너 기술·퀘스트를 주고받는 NPC·퀘스트 보상·오브젝트 이름을 한 사람만 보내도 바로 씁니다.
+- 두 사람의 확인이 필요한 드롭 기록은 더 오래 기다립니다.
 
 ### English
-- Fixed fish names staying "Loading..." in fishing spot tooltips on the map; the tooltip is drawn again once the names arrive.
+- Shared shop goods, trainer spells, quest givers and turn-ins, quest rewards and object names are now used as soon as one player sends them.
+- Shared drops, which still need a second player, now wait longer for one.
